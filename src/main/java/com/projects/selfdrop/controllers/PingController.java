@@ -11,17 +11,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/ping")
 class PingController {
     private final IdGenerator idGenerator;
-    private final FileRepository fileRepository;
 
-    public PingController(IdGenerator idGenerator, FileRepository fileRepository)
+    public PingController(IdGenerator idGenerator)
     {
         this.idGenerator = idGenerator;
-        this.fileRepository = fileRepository;
     }
-
 
     @GetMapping
     public IdDto ping() {
-        return new IdDto(idGenerator.getId());
+        return new IdDto(idGenerator.getServerId());
     }
 }

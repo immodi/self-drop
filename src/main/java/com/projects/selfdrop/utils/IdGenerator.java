@@ -6,13 +6,13 @@ import java.util.UUID;
 
 @Component
 public class IdGenerator {
-    private volatile String id = UUID.randomUUID().toString();
+    private final String serverId = UUID.randomUUID().toString();
 
-    public String getId() {
-        return id;
+    public String getServerId() {
+        return serverId;
     }
 
-    public void refresh() {
-        this.id = UUID.randomUUID().toString();
+    public static String generate() {
+        return UUID.randomUUID().toString();
     }
 }
