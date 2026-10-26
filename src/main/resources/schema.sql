@@ -6,6 +6,5 @@ CREATE TABLE IF NOT EXISTS files (
     name TEXT,
     mime TEXT,
     size INTEGER,
-    device TEXT,
     created_at INTEGER NOT NULL
 );

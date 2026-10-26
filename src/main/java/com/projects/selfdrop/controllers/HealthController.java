@@ -1,24 +1,23 @@
 package com.projects.selfdrop.controllers;
 
 import com.projects.selfdrop.dtos.IdDto;
-import com.projects.selfdrop.repositories.FileRepository;
-import com.projects.selfdrop.utils.IdGenerator;
+import com.projects.selfdrop.services.ServerIdService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 @RestController
 @RequestMapping("/ping")
-class PingController {
-    private final IdGenerator idGenerator;
+class HealthController {
+    private final ServerIdService serverIdService;
 
-    public PingController(IdGenerator idGenerator)
+    public HealthController(ServerIdService serverIdService)
     {
-        this.idGenerator = idGenerator;
+        this.serverIdService = serverIdService;
     }
 
     @GetMapping
     public IdDto ping() {
-        return new IdDto(idGenerator.getServerId());
+        return new IdDto(serverIdService.value());
     }
 }

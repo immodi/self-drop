@@ -19,7 +19,6 @@ public class FileMapper {
                 file.getName(),
                 file.getMime(),
                 file.getSize(),
-                file.getDevice(),
                 file.getCreatedAt()
         );
     }
@@ -36,7 +35,6 @@ public class FileMapper {
                 request.name(),
                 request.mime(),
                 request.size(),
-                request.device(),
                 createdAt
         );
     }
@@ -47,6 +45,5 @@ public class FileMapper {
         file.setName(request.name());
         file.setMime(request.mime());
         file.setSize(request.size());
-        file.setDevice(request.device());
     }
 }

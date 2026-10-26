@@ -12,7 +12,6 @@ public record UpdateFileRequest(
         String text,
         String name,
         String mime,
-        @PositiveOrZero Long size,
-        String device
+        @PositiveOrZero Long size
 ) {
 }

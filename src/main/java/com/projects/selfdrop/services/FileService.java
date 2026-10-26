@@ -7,17 +7,20 @@ import com.projects.selfdrop.dtos.GetFileRequest;
 import com.projects.selfdrop.dtos.UpdateFileRequest;
 import com.projects.selfdrop.entities.File;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
+import com.projects.selfdrop.interfaces.IFileRepository;
+import com.projects.selfdrop.interfaces.IFileService;
 import com.projects.selfdrop.mappers.FileMapper;
 import com.projects.selfdrop.repositories.FileRepository;
-import com.projects.selfdrop.utils.IdGenerator;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
 
+@Primary
 @Service
-public class FileService {
-    private final FileRepository fileRepository;
+public class FileService implements IFileService {
+    private final IFileRepository fileRepository;
     private final FileMapper fileMapper;
 
     public FileService(FileRepository fileRepository, FileMapper fileMapper) {
@@ -35,8 +38,16 @@ public class FileService {
         return fileMapper.toDtos(fileRepository.findAll());
     }
 
+    public List<FileDto> findSince(long seq) {
+        return fileMapper.toDtos(fileRepository.findSince(seq));
+    }
+
+    public List<FileDto> findLatest(int n) {
+        return fileMapper.toDtos(fileRepository.findLatest(n));
+    }
+
     public FileDto create(CreateFileRequest request) {
-        File file = fileMapper.toEntity(request, IdGenerator.generate(), Instant.now().getEpochSecond());
+        File file = fileMapper.toEntity(request, request.id(), Instant.now().getEpochSecond());
         fileRepository.create(file);
         return fileMapper.toDto(file);
     }

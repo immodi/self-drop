@@ -11,18 +11,16 @@ public class File {
     private String name;
     private String mime;
     private Long size;
-    private String device;
     private Long createdAt;
 
     protected File() {}
-    public File(String id, String kind, String text, String name, String mime, Long size, String device, long createdAt) {
+    public File(String id, String kind, String text, String name, String mime, Long size, long createdAt) {
         this.id = id;
         this.kind = kind;
         this.text = text;
         this.name = name;
         this.mime = mime;
         this.size = size;
-        this.device = device;
         this.createdAt = createdAt;
     }
 
@@ -80,14 +78,6 @@ public class File {
 
     public void setSize(Long size) {
         this.size = size;
-    }
-
-    public String getDevice() {
-        return device;
-    }
-
-    public void setDevice(String device) {
-        this.device = device;
     }
 
     public Long getCreatedAt() {
