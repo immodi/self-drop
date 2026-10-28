@@ -6,6 +6,7 @@ import com.projects.selfdrop.dtos.GetFileRequest;
 import com.projects.selfdrop.dtos.UpdateFileRequest;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import com.projects.selfdrop.interfaces.IFileService;
+import com.projects.selfdrop.interfaces.IFileStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -41,6 +43,9 @@ public class FileControllerTest {
 
     @MockitoBean
     private IFileService fileService;
+
+    @MockitoBean
+    private IFileStorage fileStorage;
 
     private FileDto fileDto;
 
@@ -206,21 +211,35 @@ public class FileControllerTest {
     }
 
     @Test
-    void shouldDeleteFile() throws Exception {
+    void shouldDeleteFileAndItsBytes() throws Exception {
         mockMvc.perform(delete("/file/1"))
                 .andExpect(status().isNoContent());
 
         verify(fileService).delete(new DeleteFileRequest("1"));
+        verify(fileStorage).delete("1");
     }
 
     @Test
-    void shouldReturnNotFoundWhenDeletingMissingFile() throws Exception {
+    void shouldReturnNoContentEvenWhenBytesCannotBeDeleted() throws Exception {
+        doThrow(new IOException("disk on fire")).when(fileStorage).delete("1");
+
+        mockMvc.perform(delete("/file/1"))
+                .andExpect(status().isNoContent());
+
+        verify(fileService).delete(new DeleteFileRequest("1"));
+        verify(fileStorage).delete("1");
+    }
+
+    @Test
+    void shouldNotTouchStorageWhenDeletingMissingFile() throws Exception {
         doThrow(new FileNotFoundInDbException("999"))
                 .when(fileService).delete(new DeleteFileRequest("999"));
 
         mockMvc.perform(delete("/file/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.title").value("File not found"));
+
+        verify(fileStorage, never()).delete("999");
     }
 
 }

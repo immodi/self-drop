@@ -5,20 +5,27 @@ import com.projects.selfdrop.dtos.FileDto;
 import com.projects.selfdrop.dtos.GetFileRequest;
 import com.projects.selfdrop.dtos.UpdateFileRequest;
 import com.projects.selfdrop.interfaces.IFileService;
-import com.projects.selfdrop.services.FileService;
+import com.projects.selfdrop.interfaces.IFileStorage;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
 @RequestMapping("/file")
 class FileController {
+    private static final Logger log = LoggerFactory.getLogger(FileController.class);
+
     private final IFileService fileService;
-    public FileController(IFileService fileService) {
+    private final IFileStorage fileStorage;
+    public FileController(IFileService fileService, IFileStorage fileStorage) {
         this.fileService = fileService;
+        this.fileStorage = fileStorage;
     }
 
     @GetMapping
@@ -49,6 +56,16 @@ class FileController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable @NotBlank String id) {
         fileService.delete(new DeleteFileRequest(id));
+
+        try {
+            fileStorage.delete(id);
+        } catch (IOException e) {
+            // The row is gone, so the item is already invisible; the scheduled orphan
+            // sweep reclaims the bytes later. Failing the request would only confuse
+            // the caller about a delete action that did happen.
+            log.warn("Deleted row {} but could not delete its file; leaving it to the orphan sweep", id, e);
+        }
+
         return ResponseEntity.noContent().build();
     }
 }
