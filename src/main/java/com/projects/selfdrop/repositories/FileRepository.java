@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -50,6 +51,12 @@ public class FileRepository implements IFileRepository {
             log.error("Failed to retrieve file with id: {}", id, e);
             throw e;
         }
+    }
+
+    @Override
+    public boolean existsById(String id) {
+        String sql = "SELECT EXISTS (SELECT 1 FROM files WHERE id = ?)";
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(sql, Boolean.class, id));
     }
 
     public void create(File file) {

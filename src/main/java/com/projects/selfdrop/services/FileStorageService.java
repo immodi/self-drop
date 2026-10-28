@@ -27,7 +27,7 @@ public class FileStorageService implements IFileStorage {
         Path target = resolve(key);
         Files.createDirectories(target.getParent());
 
-        Path tmp = Files.createTempFile(target.getParent(), ".upload-", ".tmp");
+        Path tmp = Files.createTempFile(target.getParent(), UPLOAD_TEMP_PREFIX, UPLOAD_TEMP_SUFFIX);
         try {
             try (OutputStream out = Files.newOutputStream(tmp,
                     StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {

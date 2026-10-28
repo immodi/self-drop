@@ -13,4 +13,6 @@ public interface IFileStorage {
     boolean exists(String key);
     long size(String key) throws IOException;
     void delete(String key) throws IOException;
+    String UPLOAD_TEMP_PREFIX = ".upload-";
+    String UPLOAD_TEMP_SUFFIX = ".tmp";
 }

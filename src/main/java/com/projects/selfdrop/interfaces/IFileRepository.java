@@ -10,6 +10,7 @@ public interface IFileRepository {
     List<File> findSince(long seq);
     List<File> findLatest(int n);
     Optional<File> findById(String id);
+    boolean existsById(String id);
     void create(File file);
     boolean update(File file);
     boolean deleteById(String id);
