@@ -88,8 +88,8 @@ class UploadController {
                 try {
                     fileStorageService.delete(key);
                 } catch (Exception cleanupFailure) {
-                    // TODO: orphan-file sweep on startup to reclaim files whose row is gone.
-                    log.warn("Failed to delete stored file {} while rolling back upload", key, cleanupFailure);
+                    log.warn("Failed to delete stored file {} while rolling back upload; it will be reclaimed by the orphan sweep",
+                            key, cleanupFailure);
                 }
             }
             throw e;
