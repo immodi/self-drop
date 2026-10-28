@@ -53,11 +53,14 @@ public class FileService implements IFileService {
     }
 
     public FileDto update(UpdateFileRequest request) {
-        File file = fileRepository.findById(request.id())
+        File existing = fileRepository.findById(request.id())
                 .orElseThrow(() -> new FileNotFoundInDbException(request.id()));
-        fileMapper.applyUpdate(file, request);
-        fileRepository.update(file);
-        return fileMapper.toDto(file);
+        File updated = fileMapper.toEntity(request, existing.getId(), existing.getCreatedAt());
+        if (!fileRepository.update(updated)) {
+            throw new FileNotFoundInDbException(request.id());
+        }
+
+        return fileMapper.toDto(updated);
     }
 
     public void delete(DeleteFileRequest request) {

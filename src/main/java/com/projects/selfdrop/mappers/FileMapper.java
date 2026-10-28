@@ -39,11 +39,15 @@ public class FileMapper {
         );
     }
 
-    public void applyUpdate(File file, UpdateFileRequest request) {
-        file.setKind(request.kind());
-        file.setText(request.text());
-        file.setName(request.name());
-        file.setMime(request.mime());
-        file.setSize(request.size());
+    public File toEntity(UpdateFileRequest request, String id, Long createdAt) {
+        return new File(
+                id,
+                request.kind(),
+                request.text(),
+                request.name(),
+                request.mime(),
+                request.size(),
+                createdAt
+        );
     }
 }
