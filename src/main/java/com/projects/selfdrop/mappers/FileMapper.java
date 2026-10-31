@@ -1,8 +1,8 @@
 package com.projects.selfdrop.mappers;
 
-import com.projects.selfdrop.dtos.CreateFileRequest;
-import com.projects.selfdrop.dtos.FileDto;
-import com.projects.selfdrop.dtos.UpdateFileRequest;
+import com.projects.selfdrop.dtos.requests.CreateFileRequest;
+import com.projects.selfdrop.dtos.responses.FileDto;
+import com.projects.selfdrop.dtos.requests.UpdateFileRequest;
 import com.projects.selfdrop.entities.File;
 import org.springframework.stereotype.Component;
 

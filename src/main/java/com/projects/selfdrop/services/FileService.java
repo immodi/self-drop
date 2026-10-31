@@ -1,6 +1,7 @@
 package com.projects.selfdrop.services;
 
-import com.projects.selfdrop.dtos.*;
+import com.projects.selfdrop.dtos.requests.*;
+import com.projects.selfdrop.dtos.responses.*;
 import com.projects.selfdrop.entities.File;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import com.projects.selfdrop.interfaces.IEventPublisher;

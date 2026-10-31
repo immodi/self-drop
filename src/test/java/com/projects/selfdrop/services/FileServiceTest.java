@@ -1,11 +1,11 @@
 package com.projects.selfdrop.services;
 
-import com.projects.selfdrop.dtos.CreateFileRequest;
-import com.projects.selfdrop.dtos.DeleteFileRequest;
-import com.projects.selfdrop.dtos.FileDto;
-import com.projects.selfdrop.dtos.GetFileRequest;
-import com.projects.selfdrop.dtos.UpdateFileRequest;
-import com.projects.selfdrop.dtos.UploadTextRequest;
+import com.projects.selfdrop.dtos.requests.CreateFileRequest;
+import com.projects.selfdrop.dtos.requests.DeleteFileRequest;
+import com.projects.selfdrop.dtos.responses.FileDto;
+import com.projects.selfdrop.dtos.requests.GetFileRequest;
+import com.projects.selfdrop.dtos.requests.UpdateFileRequest;
+import com.projects.selfdrop.dtos.requests.UploadTextRequest;
 import com.projects.selfdrop.entities.File;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import com.projects.selfdrop.interfaces.IEventPublisher;

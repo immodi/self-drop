@@ -1,6 +1,6 @@
 package com.projects.selfdrop.messaging;
 
-import com.projects.selfdrop.dtos.FileDto;
+import com.projects.selfdrop.dtos.responses.FileDto;
 
 /**
  * Notification payload for the live-update stream.

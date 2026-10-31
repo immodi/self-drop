@@ -1,4 +1,4 @@
-package com.projects.selfdrop.dtos;
+package com.projects.selfdrop.dtos.requests;
 
 public record UploadFileRequest(
         String name,

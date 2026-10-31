@@ -1,8 +1,8 @@
 package com.projects.selfdrop.controllers;
 
-import com.projects.selfdrop.dtos.CreateFileRequest;
-import com.projects.selfdrop.dtos.DeleteFileRequest;
-import com.projects.selfdrop.dtos.FileDto;
+import com.projects.selfdrop.dtos.requests.CreateFileRequest;
+import com.projects.selfdrop.dtos.requests.DeleteFileRequest;
+import com.projects.selfdrop.dtos.responses.FileDto;
 import com.projects.selfdrop.interfaces.IFileService;
 import com.projects.selfdrop.interfaces.IFileStorage;
 import org.junit.jupiter.api.Test;

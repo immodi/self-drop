@@ -1,6 +1,6 @@
 package com.projects.selfdrop.controllers;
 
-import com.projects.selfdrop.dtos.ServerIdDto;
+import com.projects.selfdrop.dtos.responses.ServerIdDto;
 import com.projects.selfdrop.services.ServerIdService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

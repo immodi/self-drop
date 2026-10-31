@@ -1,6 +1,6 @@
 package com.projects.selfdrop.controllers;
 
-import com.projects.selfdrop.dtos.FileDto;
+import com.projects.selfdrop.dtos.responses.FileDto;
 import com.projects.selfdrop.messaging.FileEvent;
 import com.projects.selfdrop.interfaces.IBroadcaster;
 import com.projects.selfdrop.interfaces.IFileService;

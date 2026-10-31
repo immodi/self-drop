@@ -1,7 +1,7 @@
 package com.projects.selfdrop.controllers;
 
-import com.projects.selfdrop.dtos.FileDto;
-import com.projects.selfdrop.dtos.GetFileRequest;
+import com.projects.selfdrop.dtos.responses.FileDto;
+import com.projects.selfdrop.dtos.requests.GetFileRequest;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import com.projects.selfdrop.interfaces.IFileService;
 import com.projects.selfdrop.interfaces.IFileStorage;

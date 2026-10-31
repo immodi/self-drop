@@ -1,6 +1,6 @@
 package com.projects.selfdrop.controllers;
 
-import com.projects.selfdrop.dtos.CreateFileRequest;
+import com.projects.selfdrop.dtos.requests.CreateFileRequest;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;

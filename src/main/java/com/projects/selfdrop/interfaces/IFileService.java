@@ -1,6 +1,7 @@
 package com.projects.selfdrop.interfaces;
 
-import com.projects.selfdrop.dtos.*;
+import com.projects.selfdrop.dtos.requests.*;
+import com.projects.selfdrop.dtos.responses.*;
 
 import java.util.List;
 
