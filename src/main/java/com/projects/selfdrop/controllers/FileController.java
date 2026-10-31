@@ -20,7 +20,6 @@ import java.util.List;
 @RequestMapping("/file")
 class FileController {
     private static final Logger log = LoggerFactory.getLogger(FileController.class);
-
     private final IFileService fileService;
     private final IFileStorage fileStorage;
     public FileController(IFileService fileService, IFileStorage fileStorage) {

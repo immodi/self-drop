@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SSE test</title>
+<style>
+    body { font: 14px/1.4 system-ui, sans-serif; margin: 2rem; }
+    #controls { margin-bottom: 1rem; display: flex; gap: .5rem; align-items: center; }
+    #log { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; max-height: 70vh; overflow: auto; border: 1px solid #ddd; padding: .5rem; }
+    .heartbeat { color: #888; }
+    .error     { color: #c00; }
+    .info      { color: #06c; }
+</style>
+<div id="controls">
+    <label>since: <input id="since" type="number" value="0" style="width: 6em"></label>
+    <button id="connect">Connect</button>
+    <button id="disconnect" disabled>Disconnect</button>
+    <button id="clear">Clear</button>
+    <span id="status">idle</span>
+</div>
+<div id="log"></div>
+<script>
+    (() => {
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+        const sinceEl = document.getElementById('since');
+        const btnC = document.getElementById('connect');
+        const btnD = document.getElementById('disconnect');
+        let es = null;
+
+        const log = (cls, ...parts) => {
+            const d = document.createElement('div');
+            d.className = cls;
+            d.textContent = new Date().toISOString().slice(11, 23) + '  ' + parts.join(' ');
+            logEl.appendChild(d);
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+        const setStatus = s => { statusEl.textContent = s; };
+
+        const connect = () => {
+            disconnect();
+            const since = sinceEl.value.trim();
+            const url = since ? `/messages?since=${encodeURIComponent(since)}` : '/messages';
+            log('info', 'connecting to', url);
+            setStatus('connecting');
+
+            es = new EventSource(url);
+            es.onopen    = () => { log('info', 'open'); setStatus('open'); };
+            const onItem = name => e => log('', `${name}  id=${JSON.stringify(e.lastEventId)}  data=${e.data}`);
+            ['item-added', 'item-updated', 'item-deleted'].forEach(name => es.addEventListener(name, onItem(name)));
+            es.addEventListener('heartbeat', () => console.log('heartbeat', '♥'));
+            es.onmessage = e => log('', `msg  id=${JSON.stringify(e.lastEventId)}  data=${e.data}`);
+            es.onerror   = () => {
+                const states = ['CONNECTING', 'OPEN', 'CLOSED'];
+                log('error', 'error readyState=' + states[es.readyState]);
+                setStatus(es.readyState === EventSource.CLOSED ? 'closed' : 'reconnecting…');
+            };
+
+            btnC.disabled = true;
+            btnD.disabled = false;
+        };
+
+        const disconnect = () => {
+            if (es) { es.close(); log('info', 'closed'); es = null; }
+            setStatus('idle');
+            btnC.disabled = false;
+            btnD.disabled = true;
+        };
+
+        btnC.onclick = connect;
+        btnD.onclick = disconnect;
+        document.getElementById('clear').onclick = () => { logEl.innerHTML = ''; };
+    })();
+</script>

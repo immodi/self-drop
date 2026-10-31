@@ -50,7 +50,7 @@ public class DownloadControllerTest {
 
     @BeforeEach
     void setUp() {
-        fileDto = new FileDto("id1", "file", null, "hello.txt", "text/plain", (long) DATA.length, 1000L);
+        fileDto = new FileDto(1L, "id1", "file", null, "hello.txt", "text/plain", (long) DATA.length, 1000L);
     }
 
     @Test
@@ -106,7 +106,7 @@ public class DownloadControllerTest {
     @Test
     void downloadFallsBackWhenMimeAndNameAreMissing() throws Exception {
         byte[] data = {1, 2, 3};
-        FileDto sparse = new FileDto("id2", "file", null, null, null, (long) data.length, 1000L);
+        FileDto sparse = new FileDto(2L, "id2", "file", null, null, null, (long) data.length, 1000L);
         when(fileService.get(new GetFileRequest("id2"))).thenReturn(sparse);
         when(fileStorage.exists("id2")).thenReturn(true);
         when(fileStorage.open("id2")).thenReturn(new ByteArrayInputStream(data));

@@ -1,6 +1,6 @@
 package com.projects.selfdrop.controllers;
 
-import com.projects.selfdrop.dtos.IdDto;
+import com.projects.selfdrop.dtos.ServerIdDto;
 import com.projects.selfdrop.services.ServerIdService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +17,7 @@ class HealthController {
     }
 
     @GetMapping
-    public IdDto ping() {
-        return new IdDto(serverIdService.value());
+    public ServerIdDto ping() {
+        return new ServerIdDto(serverIdService.value());
     }
 }

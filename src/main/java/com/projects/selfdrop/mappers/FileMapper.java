@@ -13,6 +13,7 @@ public class FileMapper {
 
     public FileDto toDto(File file) {
         return new FileDto(
+                file.getSeq(),
                 file.getId(),
                 file.getKind(),
                 file.getText(),

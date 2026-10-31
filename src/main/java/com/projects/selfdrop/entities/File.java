@@ -1,7 +1,5 @@
 package com.projects.selfdrop.entities;
 
-import com.projects.selfdrop.dtos.FileDto;
-
 public class File {
 
     private Long seq;

@@ -8,7 +8,9 @@ import com.projects.selfdrop.dtos.UpdateFileRequest;
 import com.projects.selfdrop.dtos.UploadTextRequest;
 import com.projects.selfdrop.entities.File;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
+import com.projects.selfdrop.interfaces.IEventPublisher;
 import com.projects.selfdrop.mappers.FileMapper;
+import com.projects.selfdrop.messaging.FileEvent;
 import com.projects.selfdrop.repositories.FileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,11 +40,14 @@ class FileServiceTest {
     @Mock
     private FileRepository fileRepository;
 
+    @Mock
+    private IEventPublisher<FileEvent> eventPublisher;
+
     private FileService fileService;
 
     @BeforeEach
     void setUp() {
-        fileService = new FileService(fileRepository, new FileMapper());
+        fileService = new FileService(fileRepository, new FileMapper(), eventPublisher);
     }
 
     private static File entity(String id) {
@@ -51,6 +56,7 @@ class FileServiceTest {
 
     private static FileDto dto(File file) {
         return new FileDto(
+                file.getSeq(),
                 file.getId(),
                 file.getKind(),
                 file.getText(),
@@ -206,20 +212,25 @@ class FileServiceTest {
 
     @Test
     void delete_succeedsWhenRowWasDeleted() {
+        when(fileRepository.findById("id1")).thenReturn(Optional.of(entity("id1")));
         when(fileRepository.deleteById("id1")).thenReturn(true);
 
         assertThatCode(() -> fileService.delete(new DeleteFileRequest("id1")))
                 .doesNotThrowAnyException();
+        verify(fileRepository).findById("id1");
         verify(fileRepository).deleteById("id1");
         verifyNoMoreInteractions(fileRepository);
+        verify(eventPublisher).publish(any(FileEvent.class));
     }
 
     @Test
     void delete_throwsWhenRowIsMissing() {
-        when(fileRepository.deleteById("missing")).thenReturn(false);
+        when(fileRepository.findById("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fileService.delete(new DeleteFileRequest("missing")))
                 .isInstanceOf(FileNotFoundInDbException.class)
                 .hasMessageContaining("missing");
+
+        verify(fileRepository, never()).deleteById("missing");
     }
 }

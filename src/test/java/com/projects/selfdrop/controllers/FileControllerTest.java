@@ -51,7 +51,7 @@ public class FileControllerTest {
 
     @BeforeEach
     void setUp() {
-        fileDto = new FileDto("1", "file", null, "file.txt", "text/plain", 10L, 1000L);
+        fileDto = new FileDto(1L, "1", "file", null, "file.txt", "text/plain", 10L, 1000L);
     }
 
     @Test
@@ -86,7 +86,7 @@ public class FileControllerTest {
 
     @Test
     void shouldGetAllFiles() throws Exception {
-        FileDto text = new FileDto("2", "text", "hello", null, null, 5L, 2000L);
+        FileDto text = new FileDto(2L, "2", "text", "hello", null, null, 5L, 2000L);
         when(fileService.getAll()).thenReturn(List.of(fileDto, text));
 
         mockMvc.perform(get("/file"))
@@ -170,7 +170,7 @@ public class FileControllerTest {
     @Test
     void shouldUpdateFile() throws Exception {
         UpdateFileRequest request = new UpdateFileRequest("1", "text", "updated", null, null, 7L);
-        FileDto updated = new FileDto("1", "text", "updated", null, null, 7L, 1000L);
+        FileDto updated = new FileDto(1L, "1", "text", "updated", null, null, 7L, 1000L);
         when(fileService.update(request)).thenReturn(updated);
 
         mockMvc.perform(put("/file")

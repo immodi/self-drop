@@ -55,6 +55,7 @@ public class UploadControllerTest {
 
     private static FileDto toDto(CreateFileRequest request) {
         return new FileDto(
+                1L,
                 request.id(),
                 request.kind(),
                 request.text(),
