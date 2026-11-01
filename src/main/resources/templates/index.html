@@ -91,7 +91,9 @@
 
     <footer class="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
         <p>Selfdrop · files stay on your network</p>
-        <p>Open this address on your other devices</p>
+        <p th:if="${lanUrl}">Open <a th:href="${lanUrl}" th:text="${lanUrl}"
+              class="font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 dark:text-slate-400 dark:decoration-slate-700 dark:hover:text-slate-200"></a> on your other devices</p>
+        <p th:unless="${lanUrl}">Open this address on your other devices</p>
     </footer>
 </div>
 

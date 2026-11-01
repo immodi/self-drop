@@ -3,6 +3,7 @@ package com.projects.selfdrop.controllers;
 import com.projects.selfdrop.dtos.requests.CreateFileRequest;
 import com.projects.selfdrop.dtos.responses.FileDto;
 import com.projects.selfdrop.interfaces.IFileService;
+import com.projects.selfdrop.utils.HostAddressBuilder;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -35,6 +37,9 @@ public class UiControllerTest {
     @MockitoBean
     private IFileService fileService;
 
+    @MockitoBean
+    private HostAddressBuilder hostAddressBuilder;
+
     private static FileDto textItem(long seq, String text) {
         return new FileDto(seq, "id-" + seq, "text", text, null, null, (long) text.length(), 1000L + seq);
     }
@@ -44,6 +49,7 @@ public class UiControllerTest {
         when(fileService.getAll()).thenReturn(List.of(
                 textItem(1, "older"),
                 textItem(2, "newer https://example.com")));
+        when(hostAddressBuilder.lanUrl()).thenReturn(Optional.of("http://192.168.1.104:8080"));
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
@@ -51,6 +57,7 @@ public class UiControllerTest {
                 .andExpect(content().string(containsString("Selfdrop")))
                 .andExpect(content().string(containsString("data-since=\"2\"")))
                 .andExpect(content().string(containsString("href=\"https://example.com\"")))
+                .andExpect(content().string(containsString("http://192.168.1.104:8080")))
                 .andExpect(content().string(containsString("/js/htmx.min.js")))
                 .andExpect(content().string(containsString("/css/style.css")));
 
