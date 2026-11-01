@@ -81,6 +81,14 @@ public class SseController {
             return emitter;
         }
 
+        // Flush the response headers right away. Without an initial event the
+        // browser's EventSource does not fire "open" until the first heartbeat,
+        // which leaves the UI stuck on "Connecting…" for ten seconds.
+        if (!broadcaster.heartbeat(connectionId)) {
+            cleanup.run();
+            return emitter;
+        }
+
         ScheduledFuture<?> heartbeat = heartbeatScheduler.scheduleAtFixedRate(() -> {
             if (closed.get()) {
                 return;
