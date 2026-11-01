@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -137,6 +138,13 @@ public class GlobalExceptionHandler {
                 "Invalid value for parameter '" + ex.getName() + "'.");
         problem.setTitle("Bad request");
         return problem;
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex) {
+        // The client closed an SSE connection (or navigated away). The response
+        // is already committed, so there is nothing useful to write back.
+        log.debug("Async client disconnected: {}", ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
