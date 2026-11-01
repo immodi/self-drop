@@ -1,0 +1,19 @@
+@import "tailwindcss" source(none);
+
+@source "../src/main/resources/templates/**/*.html";
+@source "../src/main/resources/static/js/app.js";
+
+@layer base {
+    html {
+        color-scheme: light dark;
+    }
+}
+
+.item-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.item-text a {
+    @apply text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-500 dark:text-indigo-400 dark:decoration-indigo-700 dark:hover:text-indigo-300;
+}

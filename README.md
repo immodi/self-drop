@@ -28,7 +28,7 @@ Open the application in a browser and use the built-in timeline:
 
 The UI is served from `/` by the backend itself, so opening `http://localhost:8080/` (or the machine's LAN address) is enough.
 
-The page is rendered with Thymeleaf and enhanced with a vendored copy of htmx. Styles are a prebuilt Tailwind CSS file committed as `src/main/resources/static/css/style.css`; the repo deliberately keeps no `package.json`, `node_modules`, or other Node build files.
+The page is rendered with Thymeleaf and enhanced with a vendored copy of htmx. Styles are a prebuilt Tailwind CSS file committed as `src/main/resources/static/css/style.css` and generated from `tailwind/input.css` with `make css`; the repo deliberately keeps no `package.json`, `node_modules`, or other Node build files.
 
 ## API
 
@@ -137,12 +137,31 @@ Defaults are in `src/main/resources/application.properties`:
 | `spring.servlet.multipart.file-size-threshold` | `0` | Write uploads straight to disk |
 | `spring.servlet.multipart.location` | `/var/tmp/selfdrop-uploads` | Multipart temp directory |
 
+## Common commands
+
+A `Makefile` wraps the day-to-day workflows:
+
+| Command | What it does |
+| --- | --- |
+| `make run` | Start the app on `http://localhost:8080/` |
+| `make dev` | Run the app and Tailwind watch mode together |
+| `make test` | Run the test suite (`make check` is an alias) |
+| `make build` | Compile, test, and assemble the application |
+| `make css` | Regenerate `src/main/resources/static/css/style.css` |
+| `make css-watch` | Regenerate the CSS on every template/JS change |
+| `make clean` | Remove Gradle build output |
+| `make clean-data` | Remove `./data` (database and stored files) |
+| `make clean-tailwind` | Remove the cached Tailwind CLI |
+
+`make css` installs the Tailwind CLI into `~/.cache/selfdrop/tailwind-<version>` (override with `TAILWIND_CACHE=...`) and writes only the committed CSS file, so no `package.json`, `node_modules`, or other Node files appear in the repository.
+
 ## Run locally
 
-Requires JDK 27.
+Requires JDK 27. CSS changes also need Node.js with npm.
 
 ```bash
-./gradlew bootRun
+make run
+# or: ./gradlew bootRun
 ```
 
 Then open:
@@ -156,7 +175,8 @@ The first start creates the storage directory and the persistent server id.
 ## Tests
 
 ```bash
-./gradlew test
+make test
+# or: ./gradlew test
 ```
 
 The suite covers the controllers, upload/download/preview flows, the server-rendered UI, repository queries, file storage, server-id persistence, and error handling.
