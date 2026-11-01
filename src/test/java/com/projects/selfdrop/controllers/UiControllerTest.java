@@ -3,7 +3,7 @@ package com.projects.selfdrop.controllers;
 import com.projects.selfdrop.dtos.requests.CreateFileRequest;
 import com.projects.selfdrop.dtos.responses.FileDto;
 import com.projects.selfdrop.interfaces.IFileService;
-import com.projects.selfdrop.utils.HostAddressBuilder;
+import com.projects.selfdrop.services.AddressService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +14,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -38,7 +37,7 @@ public class UiControllerTest {
     private IFileService fileService;
 
     @MockitoBean
-    private HostAddressBuilder hostAddressBuilder;
+    private AddressService addressService;
 
     private static FileDto textItem(long seq, String text) {
         return new FileDto(seq, "id-" + seq, "text", text, null, null, (long) text.length(), 1000L + seq);
@@ -49,7 +48,9 @@ public class UiControllerTest {
         when(fileService.getAll()).thenReturn(List.of(
                 textItem(1, "older"),
                 textItem(2, "newer https://example.com")));
-        when(hostAddressBuilder.lanUrl()).thenReturn(Optional.of("http://192.168.1.104:8080"));
+        when(addressService.isLocalOnly()).thenReturn(false);
+        when(addressService.current())
+                .thenReturn(new AddressService.Address("http://192.168.1.104:8080", "server-id"));
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())

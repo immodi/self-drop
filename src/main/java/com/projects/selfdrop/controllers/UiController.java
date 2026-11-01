@@ -3,8 +3,8 @@ package com.projects.selfdrop.controllers;
 import com.projects.selfdrop.dtos.requests.UploadTextRequest;
 import com.projects.selfdrop.dtos.responses.FileDto;
 import com.projects.selfdrop.interfaces.IFileService;
+import com.projects.selfdrop.services.AddressService;
 import com.projects.selfdrop.ui.UiItem;
-import com.projects.selfdrop.utils.HostAddressBuilder;
 import com.projects.selfdrop.utils.IdGenerator;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Controller;
@@ -27,11 +27,11 @@ import java.util.Objects;
 class UiController {
 
     private final IFileService fileService;
-    private final HostAddressBuilder hostAddressBuilder;
+    private final AddressService addressService;
 
-    public UiController(IFileService fileService, HostAddressBuilder hostAddressBuilder) {
+    public UiController(IFileService fileService, AddressService addressService) {
         this.fileService = fileService;
-        this.hostAddressBuilder = hostAddressBuilder;
+        this.addressService = addressService;
     }
 
     @GetMapping("/")
@@ -43,7 +43,7 @@ class UiController {
                 .filter(Objects::nonNull)
                 .max(Long::compare)
                 .orElse(0L));
-        model.addAttribute("lanUrl", hostAddressBuilder.lanUrl().orElse(null));
+        model.addAttribute("lanUrl", addressService.isLocalOnly() ? null : addressService.current().url());
         return "index";
     }
 
