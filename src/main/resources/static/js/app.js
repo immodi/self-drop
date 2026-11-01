@@ -64,7 +64,7 @@
         connectionDot.className = "size-2 rounded-full " + color;
     };
 
-    if ("EventSource" in window) {
+    if ("EventSource" in window && connection) {
         const since = Number(body.dataset.since || "0") || 0;
         const source = new EventSource("/messages?since=" + encodeURIComponent(since));
 

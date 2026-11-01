@@ -1,0 +1,97 @@
+<th:block th:fragment="card" xmlns:th="http://www.thymeleaf.org">
+    <div class="pair-picker space-y-4">
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-6">
+            <div class="flex flex-col items-center gap-6">
+                <fieldset class="w-full">
+                    <legend class="sr-only">Choose a QR code</legend>
+                    <div class="mx-auto flex w-fit rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-800 dark:bg-slate-800">
+                        <label class="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-700 has-[:checked]:bg-white has-[:checked]:text-slate-900 has-[:checked]:shadow-sm dark:text-slate-400 dark:hover:text-slate-200 dark:has-[:checked]:bg-slate-950 dark:has-[:checked]:text-slate-100">
+                            <input type="radio" id="qr-mode-pair" name="qr-mode" value="pair" class="sr-only" checked>
+                            Pair link
+                        </label>
+                        <label class="cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-700 has-[:checked]:bg-white has-[:checked]:text-slate-900 has-[:checked]:shadow-sm dark:text-slate-400 dark:hover:text-slate-200 dark:has-[:checked]:bg-slate-950 dark:has-[:checked]:text-slate-100">
+                            <input type="radio" id="qr-mode-server" name="qr-mode" value="server" class="sr-only">
+                            Server address
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div id="pair-codes"
+                     hx-get="/pair/codes"
+                     hx-trigger="every 10s"
+                     hx-swap="innerHTML"
+                     class="w-full">
+                    <div th:replace="~{fragments/pair :: codes}"></div>
+                </div>
+            </div>
+        </section>
+
+        <p class="text-center text-xs text-slate-400 dark:text-slate-500">
+            Works on your local network. The codes refresh by themselves when the address changes.
+        </p>
+    </div>
+</th:block>
+
+<th:block th:fragment="codes" xmlns:th="http://www.thymeleaf.org">
+    <div data-qr-panel="pair" class="space-y-4">
+        <div class="flex flex-col items-center gap-4">
+            <div class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700">
+                <img th:src="'data:image/png;base64,' + ${pairQr}"
+                     alt="QR code for the Selfdrop pair link"
+                     width="240" height="240"
+                     class="size-60">
+            </div>
+
+            <div class="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Pair link</p>
+                <div class="mt-1 flex items-center justify-between gap-3">
+                    <code class="min-w-0 break-all font-mono text-xs text-slate-600 dark:text-slate-400"
+                          th:text="${pairUri}"></code>
+                    <button type="button"
+                            th:attr="data-copy=${pairUri}"
+                            class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                            title="Copy pair link" aria-label="Copy pair link">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="size-3.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/>
+                        </svg>
+                        <span>Copy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div data-qr-panel="server" class="space-y-4">
+        <div class="flex flex-col items-center gap-4">
+            <div class="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700">
+                <img th:src="'data:image/png;base64,' + ${serverQr}"
+                     alt="QR code for the Selfdrop server address"
+                     width="240" height="240"
+                     class="size-60">
+            </div>
+
+            <div class="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Server address</p>
+                <div class="mt-1 flex items-center justify-between gap-3">
+                    <p class="min-w-0 break-all font-mono text-sm text-slate-800 dark:text-slate-200"
+                       th:text="${address.url}"></p>
+                    <button type="button"
+                            th:attr="data-copy=${address.url}"
+                            class="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                            title="Copy address" aria-label="Copy address">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="size-3.5" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"/>
+                        </svg>
+                        <span>Copy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <p th:if="${localOnly}"
+       class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+        No LAN address was detected, so these codes point at the machine itself. Open Selfdrop through the
+        computer's network address and reload.
+    </p>
+</th:block>

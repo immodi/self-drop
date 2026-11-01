@@ -17,3 +17,16 @@
 .item-text a {
     @apply text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-500 dark:text-indigo-400 dark:decoration-indigo-700 dark:hover:text-indigo-300;
 }
+
+/* /pair: show the QR panel selected by the radio buttons above it. */
+[data-qr-panel="server"] {
+    display: none;
+}
+
+.pair-picker:has(#qr-mode-server:checked) [data-qr-panel="pair"] {
+    display: none;
+}
+
+.pair-picker:has(#qr-mode-server:checked) [data-qr-panel="server"] {
+    display: block;
+}

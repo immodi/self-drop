@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Pair · Selfdrop</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}" href="/favicon.svg">
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
+    <script th:src="@{/js/htmx.min.js}" src="/js/htmx.min.js" defer></script>
+    <script th:src="@{/js/app.js}" src="/js/app.js" defer></script>
+</head>
+<body class="min-h-full bg-slate-50 text-slate-900 antialiased selection:bg-indigo-200 selection:text-indigo-950 dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-indigo-900 dark:selection:text-indigo-50">
+<div class="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 sm:px-6 lg:py-10">
+
+    <header class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <a th:href="@{/}"
+               class="flex size-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-100"
+               title="Back to Selfdrop" aria-label="Back to Selfdrop">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Pair a device</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Scan the code to open Selfdrop on another device</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="mt-8 flex-1">
+        <div th:replace="~{fragments/pair :: card}"></div>
+    </main>
+
+    <footer class="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
+        <p>Selfdrop · files stay on your network</p>
+        <a th:href="@{/}"
+           class="font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-700 dark:text-slate-400 dark:decoration-slate-700 dark:hover:text-slate-200">Back to the timeline</a>
+    </footer>
+</div>
+
+<div id="toast"
+     class="pointer-events-none fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
+     role="status" aria-live="polite">
+    <span id="toast-dot" class="size-2 rounded-full bg-emerald-400"></span>
+    <span id="toast-message"></span>
+</div>
+</body>
+</html>
