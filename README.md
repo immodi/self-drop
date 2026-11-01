@@ -30,6 +30,19 @@ The UI is served from `/` by the backend itself, so opening `http://localhost:80
 
 The page is rendered with Thymeleaf and enhanced with a vendored copy of htmx. Styles are a prebuilt Tailwind CSS file committed as `src/main/resources/static/css/style.css` and generated from `tailwind/input.css` with `make css`; the repo deliberately keeps no `package.json`, `node_modules`, or other Node build files.
 
+## Address discovery
+
+The backend keeps the address it currently advertises in `AddressService`. It detects the LAN address at startup and re-checks it every 30 seconds, so the footer and the `/pair` page share one stored value instead of resolving it separately.
+
+The `/pair` fallback page offers a selector between two QR codes: the `selfdrop://pair?u=<url>&id=<server-id>` deep link and the plain server address. Each has a copy button. The codes poll themselves every 10 seconds, so a change to the stored address shows up without a reload. When no LAN address can be detected, the page warns that the codes only point at the server itself.
+
+Worker publication is still planned:
+
+- The Java application owns publication: on startup and whenever the stored address or server id changes, it writes the `{ url, id, updated }` record to a Cloudflare Worker + KV. There is no separate updater script or sidecar.
+- A built-in settings page (planned at `/settings/address`) will show the detected URL and accept a manual override. The Java code validates the override, updates `AddressService`, and pushes it to the Worker; the page never calls the Worker directly.
+- The Worker write token stays in backend configuration/environment, never in the page or its responses.
+- The record is publicly readable and contains only the LAN URL and server id. Writes are skipped when nothing changed, and the Worker rejects non-private URLs.
+
 ## API
 
 All item responses use this shape:
