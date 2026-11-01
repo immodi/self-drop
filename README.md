@@ -28,6 +28,8 @@ Open the application in a browser and use the built-in timeline:
 
 The UI is served from `/` by the backend itself, so opening `http://localhost:8080/` (or the machine's LAN address) is enough.
 
+The page is rendered with Thymeleaf and enhanced with a vendored copy of htmx. Styles are a prebuilt Tailwind CSS file committed as `src/main/resources/static/css/style.css`; the repo deliberately keeps no `package.json`, `node_modules`, or other Node build files.
+
 ## API
 
 All item responses use this shape:
@@ -58,6 +60,7 @@ All item responses use this shape:
 | `POST` | `/upload/text` | Create a text item from a `text/plain` body |
 | `POST` | `/upload/file` | Upload one or more multipart `files` |
 | `GET` | `/download/{id}` | Download the stored file as an attachment |
+| `GET` | `/preview/{id}` | Inline preview for raster images (SVG is excluded) |
 
 `after` takes precedence when both `after` and `limit` are supplied. The `after` response is ordered by sequence; the `limit` response is newest-first.
 
@@ -156,13 +159,14 @@ The first start creates the storage directory and the persistent server id.
 ./gradlew test
 ```
 
-The suite covers the controllers, upload/download flows, repository queries, file storage, server-id persistence, and error handling.
+The suite covers the controllers, upload/download/preview flows, the server-rendered UI, repository queries, file storage, server-id persistence, and error handling.
 
 ## How it works
 
-- **Controllers** expose the JSON API, multipart upload, download, and health endpoints.
+- **Controllers** expose the JSON API, multipart upload, download/preview, health, and server-rendered UI endpoints.
+- **UI** is rendered with Thymeleaf, enhanced with vendored htmx, and refreshed from the SSE stream as items change.
 - **Services** map between entities and DTOs, coordinate storage, and manage the persistent server id.
 - **Repositories** use Spring `JdbcTemplate` against SQLite.
 - **File storage** keeps one file per item id, using temp-file writes plus atomic moves and best-effort rollback cleanup.
-- **Downloads** stream bytes from disk and set attachment/safety headers.
+- **Downloads** stream bytes from disk and set attachment/safety headers; previews are inline and limited to raster images.
 - **Errors** are normalized in one `@RestControllerAdvice`, so every failure has the same JSON shape.

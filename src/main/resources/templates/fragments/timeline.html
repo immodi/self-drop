@@ -1,0 +1,16 @@
+<th:block th:fragment="items" xmlns:th="http://www.thymeleaf.org">
+    <div th:if="${#lists.isEmpty(items)}"
+         class="rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-900/40">
+        <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="size-6" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5 12 2.25 3.75 7.5m16.5 0-8.25 5.25M20.25 7.5v9l-8.25 5.25m0-9L3.75 7.5m8.25 5.25v9M3.75 7.5v9l8.25 5.25"/>
+            </svg>
+        </div>
+        <p class="mt-4 text-sm font-medium text-slate-700 dark:text-slate-300">Nothing here yet</p>
+        <p class="mt-1 text-sm text-slate-400 dark:text-slate-500">Send a note or drop a file above to get started.</p>
+    </div>
+
+    <th:block th:each="item : ${items}">
+        <article th:replace="~{fragments/item :: item(${item})}"></article>
+    </th:block>
+</th:block>

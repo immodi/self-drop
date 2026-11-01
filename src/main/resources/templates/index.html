@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Selfdrop</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}" href="/favicon.svg">
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="/css/style.css">
+    <script th:src="@{/js/htmx.min.js}" src="/js/htmx.min.js" defer></script>
+    <script th:src="@{/js/app.js}" src="/js/app.js" defer></script>
+</head>
+<body class="min-h-full bg-slate-50 text-slate-900 antialiased selection:bg-indigo-200 selection:text-indigo-950 dark:bg-slate-950 dark:text-slate-100 dark:selection:bg-indigo-900 dark:selection:text-indigo-50"
+      th:attr="data-since=${since}">
+<div class="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-6 sm:px-6 lg:py-10">
+
+    <header class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="flex size-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/20 dark:bg-indigo-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4.5 16.5v1.125A2.625 2.625 0 0 0 7.125 20.25h9.75a2.625 2.625 0 0 0 2.625-2.625V16.5"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight sm:text-2xl">Selfdrop</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Your private inbox across devices</p>
+            </div>
+        </div>
+
+        <div id="connection"
+             class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+             data-state="connecting" title="Live update connection">
+            <span id="connection-dot" class="size-2 rounded-full bg-amber-400"></span>
+            <span id="connection-label">Connecting…</span>
+        </div>
+    </header>
+
+    <main class="mt-8 flex-1">
+        <section class="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-4">
+            <form id="text-form" hx-post="/ui/text" hx-target="#timeline" hx-swap="afterbegin" class="flex flex-col gap-3">
+                <label for="text" class="sr-only">Message</label>
+                <textarea id="text" name="text" rows="3" required maxlength="20000"
+                          placeholder="Drop a note, a link, or a screenshot…"
+                          class="min-h-24 w-full resize-y rounded-2xl border-0 bg-transparent px-2 py-1.5 text-[15px] leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"></textarea>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <div class="flex items-center gap-1.5">
+                        <label for="file-input"
+                               class="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-4" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/>
+                            </svg>
+                            Attach
+                        </label>
+                        <span class="hidden text-xs text-slate-400 sm:inline dark:text-slate-500">Enter to send · Shift+Enter for a new line</span>
+                    </div>
+
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 active:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                        <span>Send</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-4" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+
+            <form id="file-form" hx-post="/upload/file" hx-encoding="multipart/form-data" hx-swap="none" class="sr-only">
+                <input id="file-input" type="file" name="files" multiple>
+            </form>
+        </section>
+
+        <section class="mt-8">
+            <div class="mb-3 flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Timeline</h2>
+                    <p id="item-count" class="mt-1 text-xs text-slate-400 dark:text-slate-500"
+                       th:text="${#lists.size(items) == 1 ? '1 item' : #lists.size(items) + ' items'}">0 items</p>
+                </div>
+                <p class="hidden text-xs text-slate-400 sm:block dark:text-slate-500">New drops appear automatically</p>
+            </div>
+
+            <div id="timeline" class="space-y-3"
+                 hx-get="/ui/timeline"
+                 hx-trigger="item-changed from:body, every 120s"
+                 hx-swap="innerHTML">
+                <div th:replace="~{fragments/timeline :: items}"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500">
+        <p>Selfdrop · files stay on your network</p>
+        <p>Open this address on your other devices</p>
+    </footer>
+</div>
+
+<div id="drop-overlay"
+     class="pointer-events-none fixed inset-0 z-50 hidden items-center justify-center bg-indigo-950/70 p-6 backdrop-blur-sm">
+    <div class="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-indigo-300 bg-white/95 px-10 py-12 text-center shadow-2xl dark:border-indigo-500 dark:bg-slate-900/95">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-10 text-indigo-500" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V3.75m0 0L7.5 8.25M12 3.75l4.5 4.5M3.75 16.5v1.875A2.625 2.625 0 0 0 6.375 21h11.25a2.625 2.625 0 0 0 2.625-2.625V16.5"/>
+        </svg>
+        <p class="text-lg font-semibold text-slate-900 dark:text-slate-100">Drop to send</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Files will be added to your timeline</p>
+    </div>
+</div>
+
+<div id="toast"
+     class="pointer-events-none fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
+     role="status" aria-live="polite">
+    <span id="toast-dot" class="size-2 rounded-full bg-emerald-400"></span>
+    <span id="toast-message"></span>
+</div>
+</body>
+</html>
