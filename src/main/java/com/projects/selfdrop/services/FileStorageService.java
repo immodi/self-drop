@@ -5,6 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.*;
 import java.util.Objects;
 
@@ -74,6 +77,40 @@ public class FileStorageService implements IFileStorage {
     public void stream(String key, OutputStream out) throws IOException {
         try (InputStream in = open(key)) {
             in.transferTo(out);
+        }
+    }
+
+    @Override
+    public void stream(String key, long offset, long length, OutputStream out) throws IOException {
+        if (offset < 0 || length < 0) {
+            throw new IllegalArgumentException("offset and length must not be negative");
+        }
+
+        Path p = resolve(key);
+        if (!Files.isRegularFile(p)) {
+            throw new NoSuchFileException(key);
+        }
+        if (length == 0) {
+            return;
+        }
+
+        try (FileChannel channel = FileChannel.open(p, StandardOpenOption.READ)) {
+            WritableByteChannel target = Channels.newChannel(out);
+            long position = offset;
+            long remaining = length;
+
+            while (remaining > 0) {
+                long written = channel.transferTo(position, remaining, target);
+                if (written <= 0) {
+                    break;
+                }
+                position += written;
+                remaining -= written;
+            }
+
+            if (remaining > 0) {
+                throw new IOException("Stored file ended before the requested range");
+            }
         }
     }
 

@@ -135,7 +135,11 @@ Uploads are streamed to disk, not buffered in memory. A failed multi-file upload
 curl -OJ http://localhost:8080/download/<id>
 ```
 
-Downloads are streamed from disk, sent as an attachment with the original filename, and include `X-Content-Type-Options: nosniff` and a sandboxing `Content-Security-Policy`.
+Downloads are streamed from disk, sent as an attachment with the original filename, and include `X-Content-Type-Options: nosniff` and a sandboxing `Content-Security-Policy`. Responses advertise `Accept-Ranges: bytes` and support single byte-range requests, so interrupted downloads can be resumed:
+
+```bash
+curl -C - -OJ http://localhost:8080/download/<id>
+```
 
 ### Update
 

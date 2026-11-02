@@ -10,6 +10,12 @@ public interface IFileStorage {
     InputStream open(String key) throws IOException;
     byte[] read(String key) throws IOException;
     void stream(String key, OutputStream out) throws IOException;
+
+    /**
+     * Writes {@code length} bytes starting at {@code offset} to {@code out}.
+     * Used to serve HTTP range requests without reading the skipped bytes.
+     */
+    void stream(String key, long offset, long length, OutputStream out) throws IOException;
     boolean exists(String key);
     long size(String key) throws IOException;
     void delete(String key) throws IOException;

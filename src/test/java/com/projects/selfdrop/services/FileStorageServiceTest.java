@@ -224,6 +224,52 @@ public class FileStorageServiceTest {
                 () -> storage.stream("missing.txt", new ByteArrayOutputStream()));
     }
 
+    @Test
+    void streamRange_writesOnlyRequestedBytes() throws IOException {
+        storage.store("note.txt", DATA);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        storage.stream("note.txt", 2, 5, out);
+
+        assertArrayEquals("llo s".getBytes(StandardCharsets.UTF_8), out.toByteArray());
+    }
+
+    @Test
+    void streamRange_supportsOffsetToEnd() throws IOException {
+        storage.store("note.txt", DATA);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        storage.stream("note.txt", 6, DATA.length - 6L, out);
+
+        assertArrayEquals("selfdrop".getBytes(StandardCharsets.UTF_8), out.toByteArray());
+    }
+
+    @Test
+    void streamRange_writesNothingForZeroLength() throws IOException {
+        storage.store("note.txt", DATA);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        storage.stream("note.txt", 4, 0, out);
+
+        assertEquals(0, out.size());
+    }
+
+    @Test
+    void streamRange_throwsForMissingKey() {
+        assertThrows(NoSuchFileException.class,
+                () -> storage.stream("missing.txt", 0, 1, new ByteArrayOutputStream()));
+    }
+
+    @Test
+    void streamRange_rejectsNegativeOffsetOrLength() throws IOException {
+        storage.store("note.txt", DATA);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> storage.stream("note.txt", -1, 1, new ByteArrayOutputStream()));
+        assertThrows(IllegalArgumentException.class,
+                () -> storage.stream("note.txt", 0, -1, new ByteArrayOutputStream()));
+    }
+
     // ----------------------------------------------------------------------- exists
 
     @Test
