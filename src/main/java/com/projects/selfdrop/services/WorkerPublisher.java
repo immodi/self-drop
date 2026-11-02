@@ -212,7 +212,7 @@ public class WorkerPublisher {
      * IPv4 literal, with no path. Anything else is not worth sending, and the
      * Worker would reject it anyway.
      */
-    static boolean isPrivateHttpUrl(String value) {
+    public static boolean isPrivateHttpUrl(String value) {
         if (value == null || value.isBlank()) {
             return false;
         }

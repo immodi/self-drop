@@ -29,6 +29,7 @@ public class AddressService {
     private final ServerIdService serverIdService;
 
     private volatile Address current;
+    private volatile boolean overridden;
 
     public AddressService(HostAddressBuilder hostAddressBuilder, ServerIdService serverIdService) {
         this.hostAddressBuilder = hostAddressBuilder;
@@ -42,6 +43,26 @@ public class AddressService {
      * interface can be found.
      */
     public Address current() {
+        return current;
+    }
+
+    /**
+     * Replaces the detected address with a manual override. Only private
+     * {@code http://<IPv4>:<port>} URLs are accepted, because that is what
+     * clients can reach on the LAN and what the rendezvous Worker accepts.
+     *
+     * @return the address that is now advertised (unchanged if rejected)
+     */
+    public Address override(Address newAddress) {
+        if (!WorkerPublisher.isPrivateHttpUrl(newAddress.url())) {
+            log.warn("Refusing advertised address that is not a private http URL: {}", newAddress.url());
+            return current;
+        }
+        overridden = true;
+        if (!newAddress.equals(current)) {
+            current = newAddress;
+            log.info("Advertised address is now {}", newAddress.url());
+        }
         return current;
     }
 
@@ -66,6 +87,9 @@ public class AddressService {
             initialDelayString = "${address.refresh-millis:30000}",
             fixedDelayString = "${address.refresh-millis:30000}")
     public void refresh() {
+        if (overridden) {
+            return;
+        }
         Address detected = detect();
         if (!detected.equals(current)) {
             current = detected;

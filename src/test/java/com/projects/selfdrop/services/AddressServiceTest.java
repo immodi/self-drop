@@ -54,6 +54,38 @@ class AddressServiceTest {
     }
 
     @Test
+    void overrideReplacesTheDetectedAddressAndSurvivesARefresh() {
+        HostAddressBuilder builder = mock(HostAddressBuilder.class);
+        when(builder.build())
+                .thenReturn("http://192.168.1.50:8080")
+                .thenReturn("http://192.168.1.99:8080");
+
+        AddressService service = new AddressService(builder, serverId("abc123"));
+        service.override(new AddressService.Address("http://192.168.1.60:8080", "abc123"));
+        service.refresh();
+
+        assertThat(service.current().url()).isEqualTo("http://192.168.1.60:8080");
+    }
+
+    @Test
+    void overrideRejectsLoopbackAndPublicAddresses() {
+        HostAddressBuilder builder = mock(HostAddressBuilder.class);
+        when(builder.build()).thenReturn("http://192.168.1.50:8080");
+
+        AddressService service = new AddressService(builder, serverId("abc123"));
+
+        for (String url : new String[]{
+                "http://localhost:8080",
+                "http://127.0.0.1:8080",
+                "http://8.8.8.8:8080",
+                "https://192.168.1.60:8080"}) {
+            assertThat(service.override(new AddressService.Address(url, "abc123")).url())
+                    .as(url)
+                    .isEqualTo("http://192.168.1.50:8080");
+        }
+    }
+
+    @Test
     void detectsLoopbackVariants() {
         assertThat(AddressService.isLocalOnly("http://localhost:8080")).isTrue();
         assertThat(AddressService.isLocalOnly("http://127.0.0.1:8080")).isTrue();
