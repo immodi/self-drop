@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile
     image: selfdrop:local
     container_name: selfdrop
+    # Bring the container back when Docker starts, including after a reboot.
+    # An explicit `docker compose stop` keeps it stopped.
+    restart: unless-stopped
     # The app binds directly to the host's interfaces, so the LAN address it
     # detects and advertises is the host's real address.
     network_mode: host

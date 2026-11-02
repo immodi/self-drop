@@ -255,7 +255,15 @@ docker compose logs -f
 docker compose down
 ```
 
-The container uses `network_mode: host`, so it binds directly to the host's interfaces and the detected LAN address is the host's real address. It mounts `./data` at `/app/data`, reads `WORKER_URL` and `WORKER_TOKEN` from the shell or `.env`, and has no restart policy: start and stop it manually.
+The container uses `network_mode: host`, so it binds directly to the host's interfaces and the detected LAN address is the host's real address. It mounts `./data` at `/app/data`, reads `WORKER_URL` and `WORKER_TOKEN` from the shell or `.env`, and uses `restart: unless-stopped`, so it starts again whenever Docker starts, including after a reboot.
+
+Make sure the Docker daemon itself starts at boot. On Linux with systemd:
+
+```bash
+sudo systemctl enable --now docker
+```
+
+On Docker Desktop, enable **Start Docker Desktop when you log in**. An explicit `docker compose stop` keeps the container stopped until you start it again; `docker compose down` removes it entirely.
 
 ## Tests
 
