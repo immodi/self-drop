@@ -48,7 +48,7 @@ public class AddressService {
     /**
      * The deep link a client scans or pastes to pair with this server.
      */
-    
+
     public String pairUri() {
         Address address = current;
         return "selfdrop://pair?u=" + encode(address.url()) + "&id=" + encode(address.serverId());
