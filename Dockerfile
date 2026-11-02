@@ -1,0 +1,33 @@
+# Build the application with the same JDK major version the project targets.
+FROM eclipse-temurin:27-jdk AS build
+
+WORKDIR /workspace
+
+COPY gradle gradle
+COPY gradlew settings.gradle build.gradle ./
+RUN ./gradlew --no-daemon dependencies
+
+COPY src src
+RUN ./gradlew --no-daemon bootJar \
+    && cp "$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' -print -quit)" /workspace/app.jar
+
+# Run it with a small, non-root runtime image.
+FROM eclipse-temurin:27-jre
+
+WORKDIR /app
+
+# The base image already ships a uid/gid 1000 account (ubuntu), which matches
+# the usual desktop user that owns ./data. Rename it for clarity and reuse it.
+RUN groupmod -n selfdrop ubuntu \
+    && usermod -l selfdrop -d /app ubuntu \
+    && mkdir -p /app/data /var/tmp/selfdrop-uploads \
+    && chown -R selfdrop:selfdrop /app /var/tmp/selfdrop-uploads
+
+COPY --from=build /workspace/app.jar /app/app.jar
+
+ENV JAVA_TOOL_OPTIONS="-Xmx256m"
+EXPOSE 8080
+
+USER selfdrop
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

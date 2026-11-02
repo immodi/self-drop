@@ -238,6 +238,18 @@ The first start creates the storage directory and the persistent server id. If a
 
 The app listens on every interface, and the footer shows the detected LAN URL (for example `http://192.168.1.104:8080/`) so you can open it from other devices on the same network. When running in Docker, use host networking (`--network host`) so the resolver can see the host's interfaces.
 
+## Docker
+
+Build and start the container with Compose:
+
+```bash
+docker compose up -d --build
+docker compose logs -f
+docker compose down
+```
+
+The container uses `network_mode: host`, so it binds directly to the host's interfaces and the detected LAN address is the host's real address. It mounts `./data` at `/app/data`, reads `WORKER_URL` and `WORKER_TOKEN` from the shell or `.env`, and has no restart policy: start and stop it manually.
+
 ## Tests
 
 ```bash

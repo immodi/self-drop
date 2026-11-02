@@ -1,0 +1,16 @@
+services:
+  selfdrop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: selfdrop:local
+    container_name: selfdrop
+    # The app binds directly to the host's interfaces, so the LAN address it
+    # detects and advertises is the host's real address.
+    network_mode: host
+    environment:
+      WORKER_URL: ${WORKER_URL:-}
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
+    volumes:
+      - ./data:/app/data
+    stop_grace_period: 30s
