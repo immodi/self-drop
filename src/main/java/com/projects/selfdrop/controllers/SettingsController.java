@@ -4,6 +4,7 @@ import com.projects.selfdrop.dtos.requests.UpdateAddressRequest;
 import com.projects.selfdrop.dtos.responses.AddressDto;
 import com.projects.selfdrop.services.AddressService;
 import com.projects.selfdrop.services.WorkerPublisher;
+import com.projects.selfdrop.utils.LoopbackRequests;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -14,9 +15,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 /**
  * Lets the machine's owner review and override the address this server
@@ -41,7 +39,7 @@ class SettingsController {
 
     @GetMapping("/address")
     public ResponseEntity<?> address(HttpServletRequest request) {
-        if (isLoopback(request)) {
+        if (!LoopbackRequests.isLoopback(request)) {
             return forbidden();
         }
         return ResponseEntity.ok(dto(addressService.current()));
@@ -51,7 +49,7 @@ class SettingsController {
     public ResponseEntity<?> update(
             @Valid @RequestBody UpdateAddressRequest update,
             HttpServletRequest request) {
-        if (isLoopback(request)) {
+        if (!LoopbackRequests.isLoopback(request)) {
             return forbidden();
         }
 
@@ -84,15 +82,4 @@ class SettingsController {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }
 
-    private static boolean isLoopback(HttpServletRequest request) {
-        String remoteAddress = request.getRemoteAddr();
-        if (remoteAddress == null || remoteAddress.isBlank()) {
-            return true;
-        }
-        try {
-            return !InetAddress.getByName(remoteAddress).isLoopbackAddress();
-        } catch (UnknownHostException e) {
-            return true;
-        }
-    }
 }

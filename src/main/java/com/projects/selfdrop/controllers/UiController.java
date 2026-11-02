@@ -6,6 +6,8 @@ import com.projects.selfdrop.interfaces.IFileService;
 import com.projects.selfdrop.services.AddressService;
 import com.projects.selfdrop.ui.UiItem;
 import com.projects.selfdrop.utils.IdGenerator;
+import com.projects.selfdrop.utils.LoopbackRequests;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -35,7 +37,7 @@ class UiController {
     }
 
     @GetMapping("/")
-    public String index(Model model) {
+    public String index(Model model, HttpServletRequest request) {
         List<FileDto> files = newestFirst(fileService.getAll());
         model.addAttribute("items", files.stream().map(UiItem::from).toList());
         model.addAttribute("since", files.stream()
@@ -44,6 +46,7 @@ class UiController {
                 .max(Long::compare)
                 .orElse(0L));
         model.addAttribute("lanUrl", addressService.isLocalOnly() ? null : addressService.current().url());
+        model.addAttribute("canManageSettings", LoopbackRequests.isLoopback(request));
         return "index";
     }
 

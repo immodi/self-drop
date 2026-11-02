@@ -20,6 +20,12 @@
     const toast = document.getElementById("toast");
     const toastDot = document.getElementById("toast-dot");
     const toastMessage = document.getElementById("toast-message");
+    const settingsForm = document.getElementById("settings-form");
+    const settingsUrl = document.getElementById("settings-url");
+    const settingsError = document.getElementById("settings-error");
+    const settingsSave = document.getElementById("settings-save");
+    const settingsCurrent = document.getElementById("settings-current");
+    const settingsCopy = document.getElementById("settings-copy");
 
     let refreshTimer = null;
     let toastTimer = null;
@@ -273,6 +279,68 @@
             if (textarea.value.trim().length > 0) textForm.requestSubmit();
         }
     });
+
+    // ---------------------------------------------------------------- settings
+
+    if (settingsForm && settingsUrl) {
+        const endpoint = settingsForm.getAttribute("action") || "/settings/address";
+        const saveLabel = settingsSave?.querySelector("span");
+
+        const clearSettingsError = () => {
+            if (!settingsError) return;
+            settingsError.textContent = "";
+            settingsError.classList.add("hidden");
+        };
+
+        const showSettingsError = (message) => {
+            if (!settingsError) return;
+            settingsError.textContent = message;
+            settingsError.classList.remove("hidden");
+        };
+
+        settingsForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            clearSettingsError();
+
+            if (!settingsForm.checkValidity()) {
+                settingsForm.reportValidity();
+                return;
+            }
+
+            if (settingsSave) settingsSave.disabled = true;
+            if (saveLabel) saveLabel.textContent = "Saving…";
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify({ url: settingsUrl.value.trim() })
+                });
+
+                const data = await response.json().catch(() => null);
+                if (!response.ok) {
+                    showSettingsError(
+                        data?.errors?.url || data?.detail || "Could not save the address.");
+                    return;
+                }
+
+                if (data?.url) {
+                    settingsUrl.value = data.url;
+                    if (settingsCurrent) settingsCurrent.textContent = data.url;
+                    if (settingsCopy) settingsCopy.dataset.copy = data.url;
+                }
+                showToast("Address updated");
+            } catch {
+                showSettingsError("Network error. Is the server still running?");
+            } finally {
+                if (settingsSave) settingsSave.disabled = false;
+                if (saveLabel) saveLabel.textContent = "Save address";
+            }
+        });
+    }
 
     // ------------------------------------------------------------ htmx events
 

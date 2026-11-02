@@ -43,7 +43,7 @@ The backend publishes the address it advertises to a Cloudflare Worker + KV, so 
 - The last successfully published values are kept in `./data/worker-state.json`, so restarts and unchanged addresses cause no writes. The Worker also skips unchanged records.
 - The record is publicly readable and contains only the LAN URL and server id. The Worker rejects anything that is not `http://<private IPv4>:<port>`, so a leaked write token cannot redirect clients to a public host.
 - The Worker write token stays in the backend environment (`WORKER_TOKEN`), never in the page or its responses.
-- A built-in settings page for manual overrides is still planned at `/settings/address`.
+- The built-in settings page at `/settings` shows the current address and server id and lets the machine's owner save a manual override. It is loopback-only, and the JSON endpoints it uses (`GET`/`POST /settings/address`) enforce the same rule.
 
 ### Running the Worker
 
@@ -110,6 +110,8 @@ All item responses use this shape:
 | `POST` | `/upload/file` | Upload one or more multipart `files` |
 | `GET` | `/download/{id}` | Download the stored file as an attachment |
 | `GET` | `/preview/{id}` | Inline preview for raster images (SVG is excluded) |
+| `GET` | `/settings/address` | Current advertised address (loopback only) |
+| `POST` | `/settings/address` | Save an address override (loopback only) |
 
 `after` takes precedence when both `after` and `limit` are supplied. The `after` response is ordered by sequence; the `limit` response is newest-first.
 
