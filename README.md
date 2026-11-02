@@ -180,6 +180,7 @@ Defaults are in `src/main/resources/application.properties`:
 | --- | --- | --- |
 | `server.address` | `0.0.0.0` | Bind address (all interfaces) |
 | `server.port` | `8080` | HTTP port |
+| `spring.mvc.async.request-timeout` | `-1` | No timeout for streamed downloads |
 | `spring.datasource.url` | `jdbc:sqlite:./data/app.db` | SQLite database |
 | `storage.root` | `./data/files` | Stored file bytes |
 | `server-id-path` | `./data/server-id` | Persistent server identity |
