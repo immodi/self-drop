@@ -28,7 +28,7 @@ Open the application in a browser and use the built-in timeline:
 
 The UI is served from `/` by the backend itself, so opening `http://localhost:8080/` (or the machine's LAN address) is enough.
 
-The page is rendered with Thymeleaf and enhanced with a vendored copy of htmx. Styles are a prebuilt Tailwind CSS file committed as `src/main/resources/static/css/style.css` and generated from `tailwind/input.css` with `make css`; the repo deliberately keeps no `package.json`, `node_modules`, or other Node build files.
+The page is rendered with Thymeleaf and enhanced with a vendored copy of htmx. Styles are a prebuilt Tailwind CSS file committed as `src/main/resources/static/css/style.css` and generated from `tailwind/input.css` with `make css`; the web UI deliberately keeps no `package.json`, `node_modules`, or other Node build files. The Cloudflare Worker lives in its own `worker/` project (see below).
 
 ## Address discovery
 
@@ -36,12 +36,48 @@ The backend keeps the address it currently advertises in `AddressService`. It de
 
 The `/pair` fallback page offers a selector between two QR codes: the `selfdrop://pair?u=<url>&id=<server-id>` deep link and the plain server address. Each has a copy button. The codes poll themselves every 10 seconds, so a change to the stored address shows up without a reload. When no LAN address can be detected, the page warns that the codes only point at the server itself.
 
-Worker publication is still planned:
+The backend publishes the address it advertises to a Cloudflare Worker + KV, so clients can find the server again after its LAN IP changes:
 
-- The Java application owns publication: on startup and whenever the stored address or server id changes, it writes the `{ url, id, updated }` record to a Cloudflare Worker + KV. There is no separate updater script or sidecar.
-- A built-in settings page (planned at `/settings/address`) will show the detected URL and accept a manual override. The Java code validates the override, updates `AddressService`, and pushes it to the Worker; the page never calls the Worker directly.
-- The Worker write token stays in backend configuration/environment, never in the page or its responses.
-- The record is publicly readable and contains only the LAN URL and server id. Writes are skipped when nothing changed, and the Worker rejects non-private URLs.
+- The Java application owns publication: on startup and whenever the stored address or server id changes, `WorkerPublisher` writes the `{ url, id, updated }` record to the Worker. There is no separate updater script or sidecar.
+- Publication is opt-in. It runs only when `worker.url` and `worker.token` are configured; an app without a Worker keeps working exactly as before.
+- The last successfully published values are kept in `./data/worker-state.json`, so restarts and unchanged addresses cause no writes. The Worker also skips unchanged records.
+- The record is publicly readable and contains only the LAN URL and server id. The Worker rejects anything that is not `http://<private IPv4>:<port>`, so a leaked write token cannot redirect clients to a public host.
+- The Worker write token stays in the backend environment (`WORKER_TOKEN`), never in the page or its responses.
+- A built-in settings page for manual overrides is still planned at `/settings/address`.
+
+### Running the Worker
+
+The Worker is a dependency-free ES module with its own KV namespace, in `worker/`:
+
+```bash
+cd worker
+pnpm install
+pnpm test                 # node:test, no Cloudflare account needed
+pnpm exec wrangler dev    # local Worker on http://localhost:8787
+pnpm exec wrangler deploy
+pnpm exec wrangler secret put WRITE_TOKEN
+```
+
+`wrangler.toml` points at the `selfdrop-rendezvous` Worker and its `RECORD` KV namespace. The deployed record endpoint is:
+
+```text
+https://selfdrop-rendezvous.ay727468a.workers.dev/r
+```
+
+`WRITE_TOKEN` is a Worker secret; the same value goes in the backend environment:
+
+```bash
+# .env (git-ignored), loaded automatically by `make run`
+WORKER_URL=https://selfdrop-rendezvous.<account>.workers.dev/r
+WORKER_TOKEN=<the same secret>
+```
+
+The Worker endpoints are:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/r` | Public record (`404` before the first publish), CORS `*`, `Cache-Control: no-store` |
+| `PUT` | `/r` | Bearer-token write of `{"url":"http://<private IPv4>:<port>","id":"<server-id>"}` |
 
 ## API
 
@@ -132,6 +168,7 @@ The API returns `400` for invalid input, `404` for missing items, `405` for unsu
 - Item metadata lives in SQLite (default `./data/app.db`)
 - File bytes live under `storage.root` (default `./data/files`), named by item id
 - The server id is stored in `./data/server-id` and survives restarts
+- The last published Worker record is remembered in `./data/worker-state.json`
 - Uploads stream into a temporary file and are atomically renamed into place
 - Downloads stream directly from disk without loading whole files into memory
 
@@ -150,6 +187,10 @@ Defaults are in `src/main/resources/application.properties`:
 | `spring.servlet.multipart.max-request-size` | `10GB` | Total request limit |
 | `spring.servlet.multipart.file-size-threshold` | `0` | Write uploads straight to disk |
 | `spring.servlet.multipart.location` | `/var/tmp/selfdrop-uploads` | Multipart temp directory |
+| `worker.url` | empty (`WORKER_URL`) | Rendezvous Worker endpoint; empty disables publishing |
+| `worker.token` | empty (`WORKER_TOKEN`) | Worker write token, kept server-side |
+| `worker.state-path` | `./data/worker-state.json` | Last successfully published values |
+| `worker.publish-interval-millis` | `30000` | How often to check for an address change |
 
 ## Common commands
 
@@ -166,6 +207,15 @@ A `Makefile` wraps the day-to-day workflows:
 | `make clean` | Remove Gradle build output |
 | `make clean-data` | Remove `./data` (database and stored files) |
 | `make clean-tailwind` | Remove the cached Tailwind CLI |
+
+The Worker has its own commands, run inside `worker/`:
+
+| Command | What it does |
+| --- | --- |
+| `pnpm test` | Run the Worker unit tests with Node's test runner |
+| `pnpm exec wrangler dev` | Run the Worker locally |
+| `pnpm exec wrangler deploy` | Deploy the Worker to Cloudflare |
+| `pnpm exec wrangler secret put WRITE_TOKEN` | Set the write token as a Worker secret |
 
 `make css` installs the Tailwind CLI into `~/.cache/selfdrop/tailwind-<version>` (override with `TAILWIND_CACHE=...`) and writes only the committed CSS file, so no `package.json`, `node_modules`, or other Node files appear in the repository.
 
@@ -184,7 +234,7 @@ Then open:
 http://localhost:8080/
 ```
 
-The first start creates the storage directory and the persistent server id.
+The first start creates the storage directory and the persistent server id. If a `.env` file exists in the project root, Spring loads it, so `WORKER_URL` and `WORKER_TOKEN` work with both `make run` and `./gradlew bootRun`; leave them out and Worker publishing stays disabled.
 
 The app listens on every interface, and the footer shows the detected LAN URL (for example `http://192.168.1.104:8080/`) so you can open it from other devices on the same network. When running in Docker, use host networking (`--network host`) so the resolver can see the host's interfaces.
 
