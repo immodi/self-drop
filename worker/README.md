@@ -16,12 +16,18 @@ pnpm exec wrangler secret put WRITE_TOKEN
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/r` | Public record, CORS `*`, `Cache-Control: no-store` |
+| `HEAD` | `/r` | Same headers as `GET`, without a body |
 | `PUT` | `/r` | Bearer-token write of `{"url":"http://<private IPv4>:<port>","id":"<id>"}` |
+| `OPTIONS` | `/r` | CORS preflight, `204` |
+| `GET` | `/` | Alias for `/r` |
 
-The record is `{ "url", "id", "updated" }`. A `PUT` with an unchanged
-`url`/`id` returns `{ "changed": false }` and does not write to KV. Rejected
-writes get `401` (bad token), `413` (body over 1 KiB), `422` (not a private
-IPv4 HTTP URL) or `400` (bad JSON).
+The record is `{ "url", "id", "updated" }`, where `updated` is an ISO 8601
+timestamp. A `PUT` with an unchanged `url`/`id` returns
+`{ "changed": false, "record": ... }` and does not write to KV. A changed write
+returns `{ "changed": true, "record": ... }`. Rejected writes get `401` (bad
+token), `413` (body over 1 KiB), `422` (not a private IPv4 HTTP URL, or an
+invalid id), `400` (bad JSON), or `500` (the Worker has no `WRITE_TOKEN`
+secret).
 
 The write token is a Worker secret. The backend sends it as
 `Authorization: Bearer <token>`; it is never sent to clients. Locally,
