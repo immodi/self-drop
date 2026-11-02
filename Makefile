@@ -1,5 +1,9 @@
 SHELL := /bin/sh
 
+# Load local secrets such as WORKER_URL and WORKER_TOKEN when present.
+-include .env
+export
+
 GRADLE ?= ./gradlew
 NPM ?= npm
 

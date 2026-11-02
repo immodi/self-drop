@@ -144,7 +144,7 @@ public class LanAddressResolver {
                 && !address.equals("255.255.255.255");
     }
 
-    static boolean isPrivateIpv4(String address) {
+    public static boolean isPrivateIpv4(String address) {
         if (address == null) {
             return false;
         }
