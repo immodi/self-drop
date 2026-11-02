@@ -7,6 +7,11 @@
     const textarea = document.getElementById("text");
     const fileForm = document.getElementById("file-form");
     const fileInput = document.getElementById("file-input");
+    const uploadMeter = document.getElementById("upload-meter");
+    const uploadLabel = document.getElementById("upload-label");
+    const uploadPercent = document.getElementById("upload-percent");
+    const uploadTrack = document.getElementById("upload-track");
+    const uploadBar = document.getElementById("upload-bar");
     const dropOverlay = document.getElementById("drop-overlay");
     const itemCount = document.getElementById("item-count");
     const connection = document.getElementById("connection");
@@ -18,6 +23,8 @@
 
     let refreshTimer = null;
     let toastTimer = null;
+    let uploadHideTimer = null;
+    let uploadProgress = 0;
     let dragDepth = 0;
 
     // ---------------------------------------------------------------- timeline
@@ -94,6 +101,65 @@
         Array.from(files).forEach((file) => transfer.items.add(file));
         fileInput.files = transfer.files;
         fileForm.requestSubmit();
+    };
+
+    const formatBytes = (bytes) => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const value = bytes / Math.pow(1024, exponent);
+        const decimals = value >= 10 || exponent === 0 ? 0 : 1;
+        return value.toFixed(decimals) + " " + units[exponent];
+    };
+
+    const uploadSummary = () => {
+        const files = fileInput?.files;
+        if (!files || files.length === 0) return "Uploading…";
+        const totalBytes = Array.from(files).reduce((sum, file) => sum + file.size, 0);
+        const size = formatBytes(totalBytes);
+        return files.length === 1
+            ? files[0].name + " · " + size
+            : files.length + " files · " + size;
+    };
+
+    const setUploadProgress = (percent) => {
+        if (!uploadBar || !uploadPercent || !uploadTrack) return;
+        uploadProgress = Math.max(uploadProgress, Math.min(100, percent));
+        const rounded = Math.round(uploadProgress);
+        uploadBar.style.width = uploadProgress + "%";
+        uploadPercent.textContent = rounded + "%";
+        uploadTrack.setAttribute("aria-valuenow", String(rounded));
+    };
+
+    const showUploadMeter = () => {
+        if (!uploadMeter) return;
+        window.clearTimeout(uploadHideTimer);
+        uploadProgress = 0;
+        if (uploadLabel) uploadLabel.textContent = uploadSummary();
+        if (uploadBar) {
+            uploadBar.className = "h-full w-0 rounded-full bg-indigo-600 transition-[width] duration-150 ease-out dark:bg-indigo-500";
+        }
+        uploadMeter.classList.remove("hidden");
+        setUploadProgress(0);
+    };
+
+    const finishUploadMeter = (successful) => {
+        if (!uploadMeter) return;
+        if (successful) {
+            setUploadProgress(100);
+            if (uploadBar) {
+                uploadBar.className = "h-full rounded-full bg-emerald-500 transition-[width] duration-150 ease-out";
+            }
+            if (uploadLabel) uploadLabel.textContent = "Upload complete";
+        } else if (uploadBar) {
+            uploadBar.className = "h-full rounded-full bg-rose-500 transition-[width] duration-150 ease-out";
+            if (uploadLabel) uploadLabel.textContent = "Upload failed";
+        }
+
+        window.clearTimeout(uploadHideTimer);
+        uploadHideTimer = window.setTimeout(() => {
+            uploadMeter.classList.add("hidden");
+        }, successful ? 900 : 1600);
     };
 
     fileInput?.addEventListener("change", () => {
@@ -210,6 +276,17 @@
 
     // ------------------------------------------------------------ htmx events
 
+    body.addEventListener("htmx:beforeRequest", (event) => {
+        if (event.detail.elt === fileForm) showUploadMeter();
+    });
+
+    body.addEventListener("htmx:xhr:progress", (event) => {
+        if (event.detail.elt !== fileForm) return;
+        const { loaded, total } = event.detail;
+        if (!Number.isFinite(total) || total <= 0) return;
+        setUploadProgress((loaded / total) * 100);
+    });
+
     body.addEventListener("htmx:afterRequest", (event) => {
         const elt = event.detail.elt;
 
@@ -227,6 +304,7 @@
                 scheduleRefresh();
                 showToast("Files added");
             }
+            finishUploadMeter(event.detail.successful);
             return;
         }
 
