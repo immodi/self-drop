@@ -36,6 +36,11 @@ out/
 ### VS Code ###
 .vscode/
 
+# Local secrets and Worker build state
+.env
+worker/.dev.vars
+worker/.wrangler/
+worker/node_modules/
 
 data/
 TODO
