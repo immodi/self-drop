@@ -5,9 +5,9 @@ import com.projects.selfdrop.dtos.requests.GetFileRequest;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import com.projects.selfdrop.interfaces.IFileService;
 import com.projects.selfdrop.interfaces.IFileStorage;
+import com.projects.selfdrop.utils.ByteRanges;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
@@ -21,7 +21,6 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 @RestController
 @RequestMapping("/download")
@@ -47,7 +46,7 @@ class DownloadController {
         }
 
         long size = fileStorage.size(meta.id());
-        RangeSelection range = selectRange(rangeHeader, size);
+        ByteRanges.Selection range = ByteRanges.select(rangeHeader, size);
 
         if (range.unsatisfiable()) {
             return ResponseEntity.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
@@ -78,56 +77,6 @@ class DownloadController {
         }
 
         return response.body(body);
-    }
-
-    /**
-     * Handles a single byte range. Multiple ranges are ignored (the full file is
-     * sent), and malformed headers are ignored as allowed by RFC 9110.
-     */
-    private static RangeSelection selectRange(String header, long size) {
-        if (header == null || header.isBlank()) {
-            return RangeSelection.full(size);
-        }
-
-        try {
-            List<HttpRange> ranges = HttpRange.parseRanges(normalizeRangeUnit(header));
-            if (ranges.size() != 1) {
-                return RangeSelection.full(size);
-            }
-
-            HttpRange requested = ranges.get(0);
-            long start = requested.getRangeStart(size);
-            long end = requested.getRangeEnd(size);
-            if (size <= 0 || start < 0 || start >= size || start > end) {
-                return RangeSelection.unsatisfiableRange();
-            }
-
-            return RangeSelection.partial(start, end);
-        } catch (IllegalArgumentException ignored) {
-            return RangeSelection.full(size);
-        }
-    }
-
-    private static String normalizeRangeUnit(String header) {
-        String trimmed = header.trim();
-        if (trimmed.regionMatches(true, 0, "bytes=", 0, 6)) {
-            return "bytes=" + trimmed.substring(6);
-        }
-        return trimmed;
-    }
-
-    private record RangeSelection(boolean partial, boolean unsatisfiable, long start, long length) {
-        static RangeSelection full(long size) {
-            return new RangeSelection(false, false, 0, size);
-        }
-
-        static RangeSelection partial(long start, long end) {
-            return new RangeSelection(true, false, start, end - start + 1);
-        }
-
-        static RangeSelection unsatisfiableRange() {
-            return new RangeSelection(false, true, 0, 0);
-        }
     }
 
     private static MediaType contentType(String mime) {

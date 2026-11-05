@@ -62,12 +62,23 @@ public final class UiFormat {
      * SVG is deliberately excluded: serving user-uploaded SVG inline can execute
      * script in the origin that hosts the UI.
      */
-    public static boolean isPreviewable(FileDto item) {
+    public static boolean isImage(FileDto item) {
         if (item == null || !"file".equals(item.kind()) || item.mime() == null) {
             return false;
         }
         String mime = item.mime().toLowerCase(Locale.ROOT);
         return mime.startsWith("image/") && !mime.equals("image/svg+xml");
+    }
+
+    public static boolean isVideo(FileDto item) {
+        if (item == null || !"file".equals(item.kind()) || item.mime() == null) {
+            return false;
+        }
+        return item.mime().toLowerCase(Locale.ROOT).startsWith("video/");
+    }
+
+    public static boolean isPreviewable(FileDto item) {
+        return isImage(item) || isVideo(item);
     }
 
     public static String linkify(String text) {

@@ -20,7 +20,8 @@ public record UiItem(
         String time,
         String iso,
         String sizeLabel,
-        boolean image
+        boolean image,
+        boolean video
 ) {
 
     public static UiItem from(FileDto item) {
@@ -36,7 +37,8 @@ public record UiItem(
                 UiFormat.time(item.createdAt()),
                 UiFormat.iso(item.createdAt()),
                 UiFormat.size(item.size()),
-                UiFormat.isPreviewable(item)
+                UiFormat.isImage(item),
+                UiFormat.isVideo(item)
         );
     }
 }

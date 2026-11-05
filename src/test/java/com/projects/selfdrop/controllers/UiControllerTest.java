@@ -17,6 +17,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,6 +79,19 @@ public class UiControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
                 .andExpect(content().string(containsString("id=\"item-id-1\"")))
                 .andExpect(content().string(containsString("hello")));
+    }
+
+    @Test
+    void videoRendersNativePlayer() throws Exception {
+        when(fileService.getAll()).thenReturn(List.of(
+                new FileDto(1L, "vid", "file", null, "clip.mp4", "video/mp4", 2048L, 1000L)));
+
+        mockMvc.perform(get("/ui/timeline"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<video")))
+                .andExpect(content().string(containsString("controls")))
+                .andExpect(content().string(containsString("/preview/vid")))
+                .andExpect(content().string(not(containsString("<img"))));
     }
 
     @Test

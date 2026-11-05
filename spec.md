@@ -159,7 +159,7 @@ JSON unless stated otherwise.
 | `POST` | `/upload/text` | Create text item |
 | `POST` | `/upload/file` | Upload files |
 | `GET` | `/download/{id}` | Attachment download, ranges |
-| `GET` | `/preview/{id}` | Inline raster image |
+| `GET` | `/preview/{id}` | Inline raster image or video |
 | `GET` | `/messages` | SSE live updates |
 | `GET` | `/settings/address` | Advertised address (loopback) |
 | `POST` | `/settings/address` | Override address (loopback) |
@@ -431,23 +431,25 @@ curl -C - -OJ http://localhost:8080/download/<id>
 
 ### 5.9 `GET /preview/{id}`
 
-Streams an image inline for the timeline preview.
+Streams an image or video inline for the timeline preview.
 
 ```http
 GET /preview/8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77
 ```
 
-- Only `kind="file"` items whose MIME type starts with `image/` are previewable.
+- Only `kind="file"` items whose MIME type starts with `image/` or `video/`
+  are previewable.
 - `image/svg+xml` is explicitly **not** previewable, because SVG can execute
   script in the server's origin.
-- Everything else, including HTML, PDF, video, audio, and SVG, returns `404`
-  from this endpoint. Use `/download/{id}` for those.
+- Everything else, including HTML, PDF, audio, and SVG, returns `404` from this
+  endpoint. Use `/download/{id}` for those.
 - `200 OK` with the stored MIME type, `Content-Disposition: inline`,
   `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox`, and
   `Cache-Control: private, max-age=3600`.
-- `Content-Length` is the metadata `size` when present; it is not re-read from
-  disk.
-- No range support.
+- `Content-Length` is the actual stored file size.
+- Supports single byte ranges like `/download/{id}`: a satisfiable range
+  returns `206 Partial Content` with `Content-Range`, and an unsatisfiable range
+  returns `416` with `Content-Range: bytes */<size>`.
 - `404` if the item is missing, not previewable, has an invalid MIME type, or
   the bytes are missing.
 
@@ -653,9 +655,11 @@ For an Android timeline, either reverse `GET /file` or sort by
 
 ### 7.3 Previews
 
-- Use `/preview/{id}` only for raster images.
-- SVG, HTML, PDF, video, audio, and other types return `404`; use
-  `/download/{id}` and open with an external viewer.
+- Use `/preview/{id}` for raster images and videos.
+- Play videos with the platform's native player against the preview URL; the
+  endpoint supports byte ranges so seeking works.
+- SVG, HTML, PDF, audio, and other types return `404`; use `/download/{id}` and
+  open with an external viewer.
 - Preview responses are cacheable for one hour privately.
 
 ---
@@ -838,7 +842,8 @@ Rules:
 ### 10.3 Timeline and live updates
 
 - Load the timeline with `GET /file` (oldest-first; reverse for display).
-- Render text and links; preview raster images with `/preview/{id}`; show other
+- Render text and links; preview raster images with `/preview/{id}`; play
+  videos inline with the native player against `/preview/{id}`; show other
   files with name, size, and a download action.
 - Open `/messages?since=<highest seq>` while the app is in the foreground.
 - Handle `item-added`, `item-updated`, and `item-deleted` by id.
@@ -869,7 +874,8 @@ Rules:
 
 ### 10.5 Download, preview, and open
 
-- Use `/download/{id}` for attachments and `/preview/{id}` for image previews.
+- Use `/download/{id}` for attachments and `/preview/{id}` for image and video
+  previews.
 - For downloads, save to app storage and support resume with a `Range` header.
 - Handle `206` (append), `200` (restart), and `416` (already complete or
   invalid).
@@ -1017,7 +1023,7 @@ namespace. See `worker/README.md` for deployment. The backend needs
   live over `/messages` while in the foreground.
 - Deleting an item removes it locally and on other clients.
 - Downloading a file works and can resume after interruption.
-- Images preview through `/preview/{id}`; SVG/HTML do not.
+- Images and videos preview through `/preview/{id}`; SVG/HTML do not.
 - A wrong server id is detected and the user is asked before switching.
 - A foreign network or unreachable server shows an offline state within about
   1–2 seconds, and queued uploads retry later.

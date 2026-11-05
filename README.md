@@ -117,7 +117,7 @@ Full item responses use this shape (the text-upload response is only `{"text":".
 | `POST` | `/upload/text` | Create a text item from a raw `text/plain` body |
 | `POST` | `/upload/file` | Upload one or more multipart `files` |
 | `GET` | `/download/{id}` | Download the stored file as an attachment; supports single byte ranges |
-| `GET` | `/preview/{id}` | Inline preview for raster images (SVG is excluded) |
+| `GET` | `/preview/{id}` | Inline preview for raster images and videos (SVG is excluded) |
 | `GET` | `/messages` | Server-Sent Events stream for live updates |
 | `GET` | `/settings/address` | Current advertised address (loopback only) |
 | `POST` | `/settings/address` | Save an address override (loopback only) |
@@ -158,7 +158,7 @@ curl -C - -OJ http://localhost:8080/download/<id>
 
 A satisfiable range returns `206 Partial Content` with `Content-Range`; an unsatisfiable range returns `416` with `Content-Range: bytes */<size>`. Multiple or malformed ranges fall back to the full file with `200`. There is no `ETag` or `Last-Modified`.
 
-`GET /preview/{id}` serves raster images inline for the timeline. SVG is deliberately excluded, and every non-previewable type returns `404` there; use `/download/{id}` instead.
+`GET /preview/{id}` serves raster images and videos inline for the timeline; videos use the browser's native player. SVG is deliberately excluded, and every non-previewable type returns `404` there; use `/download/{id}` instead. Preview responses are streamed from disk with `Content-Length` from the stored file size and support the same single byte ranges as downloads, so video playback can seek.
 
 ### Update
 
@@ -221,7 +221,7 @@ The Android app is a separate client of this HTTP API. The important pieces are:
 - Discover the server with a cached address, the Worker record, an optional `/24` scan on port 8080, or the `selfdrop://pair?u=<url>&id=<id>` QR link. Verify `/ping`'s `id` before using an address.
 - Load the timeline with `GET /file`, then stream `/messages?since=<seq>` while in the foreground. Handle `item-added`, `item-updated`, `item-deleted`, and `heartbeat`; reload `GET /file` on reconnect because deletes are not replayed.
 - Upload text with `POST /upload/text` (raw body) and files with multipart `POST /upload/file` using repeated `files` parts. Stream from `content://` URIs; do not buffer whole files.
-- Download with `/download/{id}` and resume using `Range`; use `/preview/{id}` only for raster images. Use `Content-Length` for a full response and `Content-Range` for the total on a `206`, not the metadata `size`.
+- Download with `/download/{id}` and resume using `Range`; use `/preview/{id}` for raster images and videos. Use `Content-Length` for a full response and `Content-Range` for the total on a `206`, not the metadata `size`.
 - There is no authentication, no idempotency key, and no upload quota. Keep the server on the LAN.
 
 See [spec.md](spec.md) for the complete request/response contract, SSE framing, discovery sequence, and Android acceptance criteria.
@@ -347,7 +347,7 @@ The suite covers the controllers, upload/download/preview flows, the server-rend
 - **Services** map between entities and DTOs, coordinate storage, manage the persistent server id, detect the advertised LAN address, and publish changes to the Worker.
 - **Repositories** use Spring `JdbcTemplate` against SQLite.
 - **File storage** keeps one file per item id, using temp-file writes plus atomic moves and best-effort rollback cleanup; a scheduled sweep reclaims orphans.
-- **Downloads** stream bytes from disk and set attachment/safety headers; previews are inline and limited to raster images.
+- **Downloads** stream bytes from disk and set attachment/safety headers; previews are inline for raster images and videos.
 - **Settings** are loopback-only because an override changes where pairing clients are sent.
 - **Errors** are normalized in one `@RestControllerAdvice`, so every failure has the same JSON shape.
 - **Access control** is intentionally absent: there is no authentication, CORS, Origin check, quota, or expiry.
