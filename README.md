@@ -21,7 +21,7 @@ Open the application in a browser and use the built-in chat UI:
 - Rename a chat inline from its sidebar row; deleting a chat removes its items and files
 - Every item belongs to exactly one chat
 - Text and links render inline; links are clickable
-- Images are previewed inline; other files show name, size, and a download action
+- Images use the full card width on phones and open in a full-screen viewer; videos play inline with a dedicated fullscreen button
 - Compose box with Enter to send and Shift+Enter for a newline
 - Drag and drop, paste-a-screenshot, and a multi-file picker
 - New items appear live without a manual refresh

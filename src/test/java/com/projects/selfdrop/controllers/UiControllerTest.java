@@ -136,8 +136,22 @@ public class UiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<video")))
                 .andExpect(content().string(containsString("controls")))
+                .andExpect(content().string(containsString("data-video-fullscreen")))
                 .andExpect(content().string(containsString("/preview/vid")))
                 .andExpect(content().string(not(containsString("<img"))));
+    }
+
+    @Test
+    void imageRendersFullWidthWithLightboxTrigger() throws Exception {
+        when(fileService.getAllByChat(CHAT_ID)).thenReturn(List.of(
+                new FileDto(1L, "pic", CHAT_ID, "file", null, "photo.png", "image/png", 2048L, 1000L)));
+
+        mockMvc.perform(get("/ui/timeline").param("chatId", CHAT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<img")))
+                .andExpect(content().string(containsString("data-lightbox-src=\"/preview/pic\"")))
+                .andExpect(content().string(containsString("max-h-[70vh]")))
+                .andExpect(content().string(not(containsString("<video"))));
     }
 
     @Test

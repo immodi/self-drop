@@ -22,6 +22,9 @@
     const sidebarOpen = document.getElementById("sidebar-open");
     const sidebarClose = document.getElementById("sidebar-close");
     const chatList = document.getElementById("chat-list");
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImage = document.getElementById("lightbox-image");
+    const lightboxClose = document.getElementById("lightbox-close");
     const toast = document.getElementById("toast");
     const toastDot = document.getElementById("toast-dot");
     const toastMessage = document.getElementById("toast-message");
@@ -174,8 +177,85 @@
         closeChatRename(form.closest("li"));
     });
 
+    // ------------------------------------------------------------- media viewer
+
+    let lightboxLockedScroll = false;
+
+    const openLightbox = (src, alt) => {
+        if (!lightbox || !lightboxImage || !src) return;
+        lightboxImage.src = src;
+        lightboxImage.alt = alt || "";
+        lightbox.classList.remove("hidden");
+        lightbox.classList.add("flex");
+        if (!body.classList.contains("overflow-hidden")) {
+            body.classList.add("overflow-hidden");
+            lightboxLockedScroll = true;
+        }
+        lightboxClose?.focus();
+    };
+
+    const closeLightbox = () => {
+        if (!lightbox) return;
+        lightbox.classList.add("hidden");
+        lightbox.classList.remove("flex");
+        if (lightboxImage) {
+            lightboxImage.removeAttribute("src");
+            lightboxImage.alt = "";
+        }
+        if (lightboxLockedScroll) {
+            body.classList.remove("overflow-hidden");
+            lightboxLockedScroll = false;
+        }
+    };
+
+    const videoFullscreen = (video) => {
+        try {
+            if (typeof video.requestFullscreen === "function") {
+                video.requestFullscreen().catch(() => {
+                    if (typeof video.webkitEnterFullscreen === "function") {
+                        video.webkitEnterFullscreen();
+                    } else {
+                        showToast("Fullscreen is not available", true);
+                    }
+                });
+            } else if (typeof video.webkitEnterFullscreen === "function") {
+                video.webkitEnterFullscreen();
+            } else {
+                showToast("Fullscreen is not available", true);
+            }
+        } catch {
+            showToast("Fullscreen is not available", true);
+        }
+    };
+
+    document.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) return;
+
+        const fullscreen = event.target.closest("[data-video-fullscreen]");
+        if (fullscreen) {
+            const video = fullscreen.closest("article")?.querySelector("video");
+            if (video) videoFullscreen(video);
+            return;
+        }
+
+        if (event.target.closest("#lightbox-close") || event.target === lightbox) {
+            closeLightbox();
+            return;
+        }
+
+        const lightboxTrigger = event.target.closest("[data-lightbox-src]");
+        if (!lightboxTrigger) return;
+        event.preventDefault();
+        openLightbox(lightboxTrigger.dataset.lightboxSrc, lightboxTrigger.dataset.lightboxAlt);
+    });
+
     document.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape" || sidebar?.dataset.open !== "true") return;
+        if (event.key !== "Escape") return;
+        if (lightbox && !lightbox.classList.contains("hidden")) {
+            closeLightbox();
+            return;
+        }
+        if (sidebar?.dataset.open !== "true") return;
         setSidebar(false);
         sidebarOpen?.focus();
     });
