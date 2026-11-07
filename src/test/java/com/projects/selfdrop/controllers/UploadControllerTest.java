@@ -39,6 +39,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(UploadController.class)
 public class UploadControllerTest {
+    private static final String CHAT_ID = "chat-1";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -57,6 +59,7 @@ public class UploadControllerTest {
         return new FileDto(
                 1L,
                 request.id(),
+                request.chatId(),
                 request.kind(),
                 request.text(),
                 request.name(),
@@ -72,6 +75,7 @@ public class UploadControllerTest {
         echoCreatedFile();
 
         MvcResult result = mockMvc.perform(post("/upload/text")
+                        .param("chatId", CHAT_ID)
                         .contentType(MediaType.TEXT_PLAIN)
                         .content("hello"))
                 .andExpect(status().isCreated())
@@ -83,6 +87,7 @@ public class UploadControllerTest {
 
         CreateFileRequest request = captor.getValue();
         assertThat(request.id()).isNotBlank();
+        assertThat(request.chatId()).isEqualTo(CHAT_ID);
         assertThat(request.kind()).isEqualTo("text");
         assertThat(request.text()).isEqualTo("hello");
         assertThat(request.size()).isEqualTo(5L);
@@ -98,7 +103,7 @@ public class UploadControllerTest {
         MockMultipartFile file = new MockMultipartFile(
                 "files", "hello.txt", "text/plain", "hello".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(multipart("/upload/file").file(file))
+        mockMvc.perform(multipart("/upload/file").file(file).param("chatId", CHAT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].kind").value("file"))
@@ -114,6 +119,7 @@ public class UploadControllerTest {
         CreateFileRequest request = requestCaptor.getValue();
         assertThat(keyCaptor.getValue()).isNotBlank();
         assertThat(request.id()).isEqualTo(keyCaptor.getValue());
+        assertThat(request.chatId()).isEqualTo(CHAT_ID);
         assertThat(request.kind()).isEqualTo("file");
         assertThat(request.name()).isEqualTo("hello.txt");
         assertThat(request.mime()).isEqualTo("text/plain");
@@ -130,7 +136,7 @@ public class UploadControllerTest {
         MockMultipartFile second = new MockMultipartFile(
                 "files", "b.bin", "application/octet-stream", new byte[]{1, 2, 3, 4});
 
-        mockMvc.perform(multipart("/upload/file").file(first).file(second))
+        mockMvc.perform(multipart("/upload/file").file(first).file(second).param("chatId", CHAT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("a.txt"))
@@ -145,7 +151,7 @@ public class UploadControllerTest {
         MockMultipartFile empty = new MockMultipartFile(
                 "files", "empty.txt", "text/plain", new byte[0]);
 
-        mockMvc.perform(multipart("/upload/file").file(empty))
+        mockMvc.perform(multipart("/upload/file").file(empty).param("chatId", CHAT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
 
@@ -154,7 +160,7 @@ public class UploadControllerTest {
 
     @Test
     void uploadFile_returnsBadRequestWhenNoFilesProvided() throws Exception {
-        mockMvc.perform(multipart("/upload/file"))
+        mockMvc.perform(multipart("/upload/file").param("chatId", CHAT_ID))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Bad request"))
                 .andExpect(jsonPath("$.detail").value("Missing required request part: files."));
@@ -178,7 +184,7 @@ public class UploadControllerTest {
         MockMultipartFile second = new MockMultipartFile(
                 "files", "b.txt", "text/plain", "bbb".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(multipart("/upload/file").file(first).file(second))
+        mockMvc.perform(multipart("/upload/file").file(first).file(second).param("chatId", CHAT_ID))
                 .andExpect(status().isInternalServerError());
 
         verify(fileService, times(2)).delete(any(DeleteFileRequest.class));
@@ -195,7 +201,7 @@ public class UploadControllerTest {
         MockMultipartFile file = new MockMultipartFile(
                 "files", "a.txt", "text/plain", "aaa".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(multipart("/upload/file").file(file))
+        mockMvc.perform(multipart("/upload/file").file(file).param("chatId", CHAT_ID))
                 .andExpect(status().isInternalServerError());
 
         verify(fileService).delete(any(DeleteFileRequest.class));
@@ -213,7 +219,7 @@ public class UploadControllerTest {
         MockMultipartFile second = new MockMultipartFile(
                 "files", "b.txt", "text/plain", "bbb".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(multipart("/upload/file").file(first).file(second))
+        mockMvc.perform(multipart("/upload/file").file(first).file(second).param("chatId", CHAT_ID))
                 .andExpect(status().isInternalServerError());
 
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);

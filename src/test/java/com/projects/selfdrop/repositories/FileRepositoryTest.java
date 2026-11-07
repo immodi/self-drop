@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class FileRepositoryTest {
     private static final long CREATED_EARLY = 1_700_000_000L;
     private static final long CREATED_LATE = 1_700_000_100L;
+    private static final String CHAT_ID = "chat-1";
 
     @Autowired
     private IFileRepository repository;
@@ -36,8 +37,8 @@ public class FileRepositoryTest {
 
     @BeforeEach
     public void setUp() {
-        first = new File("1", "text", "hello", "hello.txt", "text/plain", 11L, CREATED_LATE);
-        second = new File("2", "file", "world", "world.bin", "application/octet-stream", 22L, CREATED_EARLY);
+        first = new File("1", CHAT_ID, "text", "hello", "hello.txt", "text/plain", 11L, CREATED_LATE);
+        second = new File("2", CHAT_ID, "file", "world", "world.bin", "application/octet-stream", 22L, CREATED_EARLY);
         repository.create(first);
         repository.create(second);
     }
@@ -51,12 +52,59 @@ public class FileRepositoryTest {
 
     @Test
     public void testFindAllOrdersByCreatedAtThenSeqAscending() {
-        File third = new File("3", "text", "same time", "same.txt", "text/plain", 33L, CREATED_LATE);
+        File third = new File("3", CHAT_ID, "text", "same time", "same.txt", "text/plain", 33L, CREATED_LATE);
         repository.create(third);
 
         assertThat(repository.findAll())
                 .extracting(File::getId)
                 .containsExactly("2", "1", "3");
+    }
+
+    // ------------------------------------------------------------- chat scoping
+
+    @Test
+    public void testFindAllByChatOnlyReturnsThatChat() {
+        repository.create(new File("3", "chat-2", "text", "other", null, null, 1L, CREATED_LATE));
+
+        assertThat(repository.findAllByChat(CHAT_ID))
+                .extracting(File::getId)
+                .containsExactly("2", "1");
+        assertThat(repository.findAllByChat("chat-2"))
+                .extracting(File::getId)
+                .containsExactly("3");
+    }
+
+    @Test
+    public void testFindSinceByChatScopesTheCursor() {
+        repository.create(new File("3", "chat-2", "text", "other", null, null, 1L, CREATED_LATE));
+
+        assertThat(repository.findSinceByChat(CHAT_ID, 0))
+                .extracting(File::getId)
+                .containsExactly("1", "2");
+    }
+
+    @Test
+    public void testFindLatestByChatScopesTheLimit() {
+        repository.create(new File("3", "chat-2", "text", "other", null, null, 1L, CREATED_LATE));
+
+        assertThat(repository.findLatestByChat(CHAT_ID, 10))
+                .extracting(File::getId)
+                .containsExactly("1", "2");
+    }
+
+    @Test
+    public void testMaxSeqUsesTheWholeTable() {
+        repository.create(new File("3", "chat-2", "text", "other", null, null, 1L, CREATED_LATE));
+
+        assertThat(repository.maxSeq()).isEqualTo(3L);
+    }
+
+    @Test
+    public void testCreateRequiresAChat() {
+        File noChat = new File("3", null, "text", "x", null, null, 1L, CREATED_EARLY);
+
+        assertThatThrownBy(() -> repository.create(noChat))
+                .isInstanceOf(DataAccessException.class);
     }
 
     // ------------------------------------------------------------------ findSince
@@ -84,7 +132,7 @@ public class FileRepositoryTest {
 
     @Test
     public void testFindLatestReturnsNewestFirst() {
-        File third = new File("3", "text", "same time", "same.txt", "text/plain", 33L, CREATED_LATE);
+        File third = new File("3", CHAT_ID, "text", "same time", "same.txt", "text/plain", 33L, CREATED_LATE);
         repository.create(third);
 
         assertThat(repository.findLatest(2))
@@ -109,7 +157,7 @@ public class FileRepositoryTest {
     @Test
     public void testFindLatestClampsUpperBoundToHundred() {
         for (int i = 3; i <= 101; i++) {
-            repository.create(new File(String.valueOf(i), "text", "t", null, null, 0L, CREATED_EARLY));
+            repository.create(new File(String.valueOf(i), CHAT_ID, "text", "t", null, null, 0L, CREATED_EARLY));
         }
 
         assertThat(repository.findLatest(1000)).hasSize(100);
@@ -131,6 +179,7 @@ public class FileRepositoryTest {
 
         assertThat(file.getSeq()).isEqualTo(first.getSeq());
         assertThat(file.getId()).isEqualTo("1");
+        assertThat(file.getChatId()).isEqualTo(CHAT_ID);
         assertThat(file.getKind()).isEqualTo("text");
         assertThat(file.getText()).isEqualTo("hello");
         assertThat(file.getName()).isEqualTo("hello.txt");
@@ -141,7 +190,7 @@ public class FileRepositoryTest {
 
     @Test
     public void testFindByIdMapsNullColumns() {
-        repository.create(new File("3", "file", null, null, null, null, CREATED_LATE));
+        repository.create(new File("3", CHAT_ID, "file", null, null, null, null, CREATED_LATE));
 
         File file = repository.findById("3").orElseThrow();
 
@@ -165,7 +214,7 @@ public class FileRepositoryTest {
 
     @Test
     public void testCreateAssignsSeq() {
-        File file = new File("3", "text", "new", "new.txt", "text/plain", 1L, CREATED_LATE);
+        File file = new File("3", CHAT_ID, "text", "new", "new.txt", "text/plain", 1L, CREATED_LATE);
 
         repository.create(file);
 
@@ -176,7 +225,7 @@ public class FileRepositoryTest {
 
     @Test
     public void testCreateWithDuplicateIdFails() {
-        File duplicate = new File("1", "text", "dup", null, null, 0L, CREATED_EARLY);
+        File duplicate = new File("1", CHAT_ID, "text", "dup", null, null, 0L, CREATED_EARLY);
 
         assertThatThrownBy(() -> repository.create(duplicate))
                 .isInstanceOf(DataAccessException.class);
@@ -184,7 +233,7 @@ public class FileRepositoryTest {
 
     @Test
     public void testCreateWithInvalidKindFails() {
-        File invalid = new File("3", "video", "nope", null, null, 0L, CREATED_EARLY);
+        File invalid = new File("3", CHAT_ID, "video", "nope", null, null, 0L, CREATED_EARLY);
 
         assertThatThrownBy(() -> repository.create(invalid))
                 .isInstanceOf(DataAccessException.class);
@@ -214,7 +263,7 @@ public class FileRepositoryTest {
 
     @Test
     public void testUpdateMissingReturnsFalse() {
-        File missing = new File("999", "text", "x", null, null, 0L, CREATED_EARLY);
+        File missing = new File("999", CHAT_ID, "text", "x", null, null, 0L, CREATED_EARLY);
 
         assertThat(repository.update(missing)).isFalse();
         assertThat(repository.findAll()).hasSize(2);

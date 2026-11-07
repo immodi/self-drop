@@ -7,7 +7,9 @@ import com.projects.selfdrop.dtos.requests.GetFileRequest;
 import com.projects.selfdrop.dtos.requests.UpdateFileRequest;
 import com.projects.selfdrop.dtos.requests.UploadTextRequest;
 import com.projects.selfdrop.entities.File;
+import com.projects.selfdrop.exceptions.ChatNotFoundInDbException;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
+import com.projects.selfdrop.interfaces.IChatRepository;
 import com.projects.selfdrop.interfaces.IEventPublisher;
 import com.projects.selfdrop.mappers.FileMapper;
 import com.projects.selfdrop.messaging.FileEvent;
@@ -36,9 +38,13 @@ import static org.mockito.Mockito.when;
 class FileServiceTest {
 
     private static final long CREATED_AT = 1_700_000_000L;
+    private static final String CHAT_ID = "chat-1";
 
     @Mock
     private FileRepository fileRepository;
+
+    @Mock
+    private IChatRepository chatRepository;
 
     @Mock
     private IEventPublisher<FileEvent> eventPublisher;
@@ -47,17 +53,18 @@ class FileServiceTest {
 
     @BeforeEach
     void setUp() {
-        fileService = new FileService(fileRepository, new FileMapper(), eventPublisher);
+        fileService = new FileService(fileRepository, chatRepository, new FileMapper(), eventPublisher);
     }
 
     private static File entity(String id) {
-        return new File(id, "file", null, "note.txt", "text/plain", 4L, CREATED_AT);
+        return new File(id, CHAT_ID, "file", null, "note.txt", "text/plain", 4L, CREATED_AT);
     }
 
     private static FileDto dto(File file) {
         return new FileDto(
                 file.getSeq(),
                 file.getId(),
+                file.getChatId(),
                 file.getKind(),
                 file.getText(),
                 file.getName(),
@@ -109,12 +116,30 @@ class FileServiceTest {
         assertThat(fileService.findLatest(5)).containsExactly(dto(entity("a")));
     }
 
+    @Test
+    void getAllByChat_scopesTheRepositoryQuery() {
+        when(chatRepository.existsById(CHAT_ID)).thenReturn(true);
+        when(fileRepository.findAllByChat(CHAT_ID)).thenReturn(List.of(entity("a")));
+
+        assertThat(fileService.getAllByChat(CHAT_ID)).containsExactly(dto(entity("a")));
+    }
+
+    @Test
+    void getAllByChat_throwsWhenChatIsMissing() {
+        when(chatRepository.existsById("missing")).thenReturn(false);
+
+        assertThatThrownBy(() -> fileService.getAllByChat("missing"))
+                .isInstanceOf(ChatNotFoundInDbException.class)
+                .hasMessageContaining("missing");
+    }
+
     // ----------------------------------------------------------------- create
 
     @Test
     void create_persistsEntityBuiltFromRequest() {
+        when(chatRepository.existsById(CHAT_ID)).thenReturn(true);
         CreateFileRequest request =
-                new CreateFileRequest("id1", "file", null, "note.txt", "text/plain", 4L);
+                new CreateFileRequest("id1", CHAT_ID, "file", null, "note.txt", "text/plain", 4L);
         long before = Instant.now().getEpochSecond();
 
         FileDto created = fileService.create(request);
@@ -125,6 +150,7 @@ class FileServiceTest {
         File saved = captor.getValue();
 
         assertThat(saved.getId()).isEqualTo("id1");
+        assertThat(saved.getChatId()).isEqualTo(CHAT_ID);
         assertThat(saved.getKind()).isEqualTo("file");
         assertThat(saved.getText()).isNull();
         assertThat(saved.getName()).isEqualTo("note.txt");
@@ -136,7 +162,8 @@ class FileServiceTest {
 
     @Test
     void create_fromTextUploadKeepsTextAndLeavesFileFieldsNull() {
-        CreateFileRequest request = new UploadTextRequest("hello").toCreateFileRequest("id2");
+        when(chatRepository.existsById(CHAT_ID)).thenReturn(true);
+        CreateFileRequest request = new UploadTextRequest("hello").toCreateFileRequest("id2", CHAT_ID);
 
         fileService.create(request);
 
@@ -144,6 +171,7 @@ class FileServiceTest {
         verify(fileRepository).create(captor.capture());
         File saved = captor.getValue();
 
+        assertThat(saved.getChatId()).isEqualTo(CHAT_ID);
         assertThat(saved.getKind()).isEqualTo("text");
         assertThat(saved.getText()).isEqualTo("hello");
         assertThat(saved.getName()).isNull();
@@ -168,6 +196,7 @@ class FileServiceTest {
 
         assertThat(saved).isNotSameAs(existing);
         assertThat(saved.getId()).isEqualTo("id1");
+        assertThat(saved.getChatId()).isEqualTo(CHAT_ID);
         assertThat(saved.getKind()).isEqualTo("text");
         assertThat(saved.getText()).isEqualTo("hello");
         assertThat(saved.getName()).isNull();

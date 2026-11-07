@@ -4,6 +4,7 @@ package com.projects.selfdrop.dtos.responses;
 public record FileDto(
         Long seq,
         String id,
+        String chatId,
         String kind,
         String text,
         String name,

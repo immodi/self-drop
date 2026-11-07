@@ -7,8 +7,12 @@ import java.util.Optional;
 
 public interface IFileRepository {
     List<File> findAll();
+    List<File> findAllByChat(String chatId);
     List<File> findSince(long seq);
+    List<File> findSinceByChat(String chatId, long seq);
     List<File> findLatest(int n);
+    List<File> findLatestByChat(String chatId, int n);
+    long maxSeq();
     Optional<File> findById(String id);
     boolean existsById(String id);
     void create(File file);

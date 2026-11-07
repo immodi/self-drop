@@ -61,7 +61,7 @@ public class PreviewControllerTest {
     }
 
     private static FileDto item(String id, String mime) {
-        return new FileDto(1L, id, "file", null, "photo.png", mime, (long) DATA.length, 1000L);
+        return new FileDto(1L, id, "chat-1", "file", null, "photo.png", mime, (long) DATA.length, 1000L);
     }
 
     @Test

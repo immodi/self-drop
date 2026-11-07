@@ -6,6 +6,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 public record CreateFileRequest(
         String id,
+        @NotBlank String chatId,
         @NotBlank
         @Pattern(regexp = "text|file", message = "kind must be 'text' or 'file'")
         String kind,

@@ -4,6 +4,7 @@ public class File {
 
     private Long seq;
     private String id;
+    private String chatId;
     private String kind;
     private String text;
     private String name;
@@ -12,8 +13,9 @@ public class File {
     private Long createdAt;
 
     protected File() {}
-    public File(String id, String kind, String text, String name, String mime, Long size, long createdAt) {
+    public File(String id, String chatId, String kind, String text, String name, String mime, Long size, long createdAt) {
         this.id = id;
+        this.chatId = chatId;
         this.kind = kind;
         this.text = text;
         this.name = name;
@@ -36,6 +38,14 @@ public class File {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getChatId() {
+        return chatId;
+    }
+
+    public void setChatId(String chatId) {
+        this.chatId = chatId;
     }
 
     public String getKind() {

@@ -17,7 +17,7 @@ differ, the code wins; update this document when the API changes.
 Selfdrop is a self-hosted inbox for text, links, images, and arbitrary files.
 One Spring Boot process serves:
 
-- a JSON API under `/file`, `/upload`, `/download`, `/preview`, and `/ping`
+- a JSON API under `/chat`, `/file`, `/upload`, `/download`, `/preview`, and `/ping`
 - a live-update SSE stream at `/messages`
 - a server-rendered browser UI at `/`
 - a pairing page at `/pair`
@@ -80,18 +80,31 @@ resolver can see the host's real LAN interfaces.
 - Java 27 toolchain, Spring Boot 4.1.x, Gradle, Spring Web MVC.
 - Thymeleaf + vendored htmx for the browser UI; Tailwind CSS is prebuilt.
 - SQLite via `spring-boot-starter-jdbc` and `org.xerial:sqlite-jdbc`.
+- Table `chats`:
+
+  | Column | Type | Notes |
+  |---|---|---|
+  | `seq` | INTEGER PRIMARY KEY AUTOINCREMENT | Ordering |
+  | `id` | TEXT NOT NULL UNIQUE | UUID used in URLs |
+  | `name` | TEXT NOT NULL | Display name |
+  | `created_at` | INTEGER NOT NULL | Unix epoch seconds |
+
 - Table `files` (not `items`):
 
   | Column | Type | Notes |
   |---|---|---|
   | `seq` | INTEGER PRIMARY KEY AUTOINCREMENT | Ordering and cursors |
   | `id` | TEXT NOT NULL UNIQUE | UUID used in URLs |
+  | `chat_id` | TEXT NOT NULL | Parent chat id |
   | `kind` | TEXT NOT NULL | `text` or `file` |
   | `text` | TEXT NULL | Text content for `kind=text` |
   | `name` | TEXT NULL | Original filename; never used as a path |
   | `mime` | TEXT NULL | Client-supplied MIME type |
   | `size` | INTEGER NULL | Text length or file size in bytes |
   | `created_at` | INTEGER NOT NULL | Unix epoch seconds |
+
+- A startup migration adds `chat_id` to older databases and moves any
+  pre-existing items into a `General` chat.
 
 - File bytes are stored at `storage.root/<id>` (`./data/files/<id>` by
   default), with no user-controlled path components.
@@ -112,6 +125,7 @@ Every item response uses this shape:
 {
   "seq": 42,
   "id": "8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77",
+  "chatId": "3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21",
   "kind": "file",
   "text": null,
   "name": "photo.jpg",
@@ -127,6 +141,7 @@ Field rules:
 |---|---|---|
 | `seq` | number | Database sequence; use for `after=` and SSE ids |
 | `id` | string | UUID; use in `/file/{id}`, `/download/{id}`, `/preview/{id}` |
+| `chatId` | string | UUID of the chat that owns the item |
 | `kind` | string | `text` or `file` |
 | `text` | string or null | Text content for `kind=text`; null for files |
 | `name` | string or null | Original filename; may be null |
@@ -152,12 +167,17 @@ JSON unless stated otherwise.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/ping` | Server id |
-| `GET` | `/file` | List items (`after`, `limit`) |
+| `GET` | `/chat` | List chats |
+| `GET` | `/chat/{id}` | One chat |
+| `POST` | `/chat` | Create a chat |
+| `PUT` | `/chat` | Rename a chat |
+| `DELETE` | `/chat/{id}` | Delete a chat and its items |
+| `GET` | `/file` | List items (`chatId`, `after`, `limit`) |
 | `GET` | `/file/{id}` | One item |
 | `PUT` | `/file` | Update item metadata |
 | `DELETE` | `/file/{id}` | Delete item |
-| `POST` | `/upload/text` | Create text item |
-| `POST` | `/upload/file` | Upload files |
+| `POST` | `/upload/text` | Create text item (`chatId` required) |
+| `POST` | `/upload/file` | Upload files (`chatId` required) |
 | `GET` | `/download/{id}` | Attachment download, ranges |
 | `GET` | `/preview/{id}` | Inline raster image or video |
 | `GET` | `/messages` | SSE live updates |
@@ -180,18 +200,46 @@ GET /ping
 - Use this for discovery and for the server-id check (section 9.4).
 - There is no `app`, `version`, or `status` field.
 
+### 5.1a Chats
+
+A chat is the parent of every item. Chat objects use this shape:
+
+```json
+{
+  "seq": 1,
+  "id": "3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21",
+  "name": "General",
+  "createdAt": 1761300000
+}
+```
+
+- `GET /chat` returns all chats, oldest first.
+- `GET /chat/{id}` returns one chat, or `404` with
+  `title: "Chat not found"`.
+- `POST /chat` with `{"name":"..."}` creates a chat, returning `201 Created`
+  with `Location: /chat/<id>` and the chat object. `name` is required, trimmed,
+  and limited to 120 characters.
+- `PUT /chat` with `{"id":"...","name":"..."}` renames a chat.
+- `DELETE /chat/{id}` deletes the chat, every item in it, and their stored
+  bytes, returning `204 No Content`. It emits `item-deleted` SSE events for the
+  removed items.
+- Every item endpoint that creates an item requires an existing `chatId`. An
+  unknown chat returns `404` with `title: "Chat not found"`.
+
 ### 5.2 `GET /file`
 
 Returns an array of items.
 
 | Query | Behavior |
 |---|---|
-| none | All items, ordered by `createdAt` ascending, then `seq` ascending |
+| none | All items across chats, ordered by `createdAt` ascending, then `seq` ascending |
+| `chatId=<id>` | Only items in that chat, same ordering |
 | `after=<seq>` | Items with `seq > <seq>`, ordered by `seq` ascending |
 | `limit=<n>` | Newest `n` items, ordered by `createdAt` descending, then `seq` descending; `n` is clamped to 1–100 |
 
+- `chatId` combines with `after` and `limit`; an unknown `chatId` returns `404`.
 - If both `after` and `limit` are present, `after` wins.
-- `after` is not clamped. `after=0` returns all items in `seq` order.
+- `after` is not clamped. `after=0` returns all matching items in `seq` order.
 - `limit=0` or a negative `limit` returns one item (clamped to 1).
 - Non-numeric `after` or `limit` returns `400` (section 8).
 - The response is a bare JSON array, not an envelope. An empty timeline returns
@@ -203,6 +251,8 @@ Examples:
 GET /file
 GET /file?limit=50
 GET /file?after=123
+GET /file?chatId=3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21
+GET /file?chatId=3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21&limit=50
 ```
 
 ```json
@@ -210,6 +260,7 @@ GET /file?after=123
   {
     "seq": 123,
     "id": "8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77",
+    "chatId": "3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21",
     "kind": "text",
     "text": "https://example.com",
     "name": null,
@@ -220,9 +271,9 @@ GET /file?after=123
 ]
 ```
 
-For a full timeline, use `GET /file`. For a recent-items shortcut, use
-`GET /file?limit=...` and reverse the array in the client if the UI is
-oldest-first. For catch-up, use `GET /file?after=<lastSeq>`.
+For an open chat, use `GET /file?chatId=<id>`. For a recent-items shortcut, use
+`GET /file?chatId=<id>&limit=...` and reverse the array in the client if the UI
+is oldest-first. For catch-up, use `GET /file?chatId=<id>&after=<lastSeq>`.
 
 ### 5.3 `GET /file/{id}`
 
@@ -292,15 +343,17 @@ DELETE /file/8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77
 
 ### 5.6 `POST /upload/text`
 
-Creates a text item from the raw request body.
+Creates a text item in a chat from the raw request body.
 
 ```http
-POST /upload/text
+POST /upload/text?chatId=<chat-id>
 Content-Type: text/plain
 
 https://example.com
 ```
 
+- `chatId` is required; omitting it returns `400`, and an unknown chat returns
+  `404`.
 - The body is read as a string. Send the text directly; do not wrap it in JSON.
 - `201 Created` with `Location: /file/<id>`.
 - The response body is **only** `{"text":"<text>"}` (a `TextDto`), not the full
@@ -328,15 +381,17 @@ Content-Type: application/json
 
 ### 5.7 `POST /upload/file`
 
-Uploads one or more files as multipart form data.
+Uploads one or more files to a chat as multipart form data.
 
 ```http
-POST /upload/file
+POST /upload/file?chatId=<chat-id>
 Content-Type: multipart/form-data; boundary=...
 ```
 
 Multipart parts:
 
+- `chatId` is required; omitting it returns `400`, and an unknown chat returns
+  `404`. It may be sent as a query parameter or as a form field.
 - Part name must be exactly `files`.
 - Repeat the `files` part for multiple files.
 - Each part's filename and content type become the item's `name` and `mime`.
@@ -345,7 +400,7 @@ Multipart parts:
 Example with curl:
 
 ```bash
-curl -X POST http://localhost:8080/upload/file \
+curl -X POST 'http://localhost:8080/upload/file?chatId=<chat-id>' \
      -F 'files=@photo.jpg' \
      -F 'files=@notes.pdf'
 ```
@@ -484,15 +539,15 @@ Event framing:
 ```text
 event: item-added
 id: 42
-data: {"type":"item-added","id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","seq":42,"item":{"seq":42,"id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","kind":"file","text":null,"name":"photo.jpg","mime":"image/jpeg","size":183204,"createdAt":1761300000}}
+data: {"type":"item-added","id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","chatId":"3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21","seq":42,"item":{"seq":42,"id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","chatId":"3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21","kind":"file","text":null,"name":"photo.jpg","mime":"image/jpeg","size":183204,"createdAt":1761300000}}
 
 event: item-updated
 id: 42
-data: {"type":"item-updated","id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","seq":42,"item":{...}}
+data: {"type":"item-updated","id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","chatId":"3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21","seq":42,"item":{...}}
 
 event: item-deleted
 id: 42
-data: {"type":"item-deleted","id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","seq":42,"item":null}
+data: {"type":"item-deleted","id":"8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77","chatId":"3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21","seq":42,"item":null}
 
 event: heartbeat
 data:
@@ -593,17 +648,27 @@ an HTML explanation for remote clients. Android does not need this page.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/` | Timeline page |
-| `GET` | `/ui/timeline` | Timeline HTML fragment |
-| `POST` | `/ui/text` | Form-encoded text create for htmx |
+| `GET` | `/` | Chat page (`?chat=<id>` selects a chat) |
+| `GET` | `/ui/timeline` | Timeline HTML fragment (`chatId` required) |
+| `POST` | `/ui/text` | Form-encoded text create for htmx (`chatId` required) |
+| `POST` | `/ui/chat` | Create a chat from a form `name` field |
+| `POST` | `/ui/chat/{id}/rename` | Rename a chat from a form `name` field, then redirect to it |
+| `POST` | `/ui/chat/{id}/delete` | Delete a chat, then redirect home |
 | `GET` | `/pair` | Pairing page with two QR codes |
 | `GET` | `/pair/codes` | Pairing QR fragment, polled every 10s |
 | `GET` | `/settings` | Loopback-only settings page |
 | `GET` | `/css/*`, `/js/*`, `/favicon.svg` | Static assets |
 
-`POST /ui/text` accepts `application/x-www-form-urlencoded` with a `text` field
-and returns an HTML item fragment. It is not a JSON API. Android should use
-`POST /upload/text` instead.
+`POST /ui/text` accepts `application/x-www-form-urlencoded` with `chatId` and
+`text` fields and returns an HTML item fragment. It is not a JSON API. Android
+should use `POST /upload/text` instead. The page creates a default `General`
+chat when no chats exist.
+
+The browser UI keeps chats in a collapsible sidebar. The menu button opens it
+as an overlay on phones and toggles it in place on wider screens; the sidebar
+state is remembered in `localStorage`. Each sidebar row selects the chat,
+edits its name inline through `POST /ui/chat/{id}/rename`, or deletes it.
+`POST /ui/chat` is used by the "New chat" button with the name `New chat`.
 
 ---
 
@@ -612,13 +677,15 @@ and returns an HTML item fragment. It is not a JSON API. Android should use
 - `seq` is the only safe cursor for `after=` and SSE `Last-Event-ID`.
 - `createdAt` is second-resolution and can tie; ordering falls back to `seq`.
 - `GET /file` is oldest-first (`createdAt`, then `seq`).
+- `GET /file?chatId=<id>` keeps the same ordering, scoped to one chat.
 - `GET /file?limit=N` is newest-first (`createdAt` descending, then `seq`
   descending), then clamped to 100.
 - `GET /file?after=N` is `seq` ascending.
-- SSE replay is `seq` ascending.
+- SSE replay is `seq` ascending. `seq` is global across chats, so a chat's
+  sequence numbers may have gaps.
 
-For an Android timeline, either reverse `GET /file` or sort by
-`createdAt`/`seq` descending in the client.
+For an Android timeline, either reverse the chat's `GET /file` result or sort
+by `createdAt`/`seq` descending in the client.
 
 ---
 
@@ -626,9 +693,11 @@ For an Android timeline, either reverse `GET /file` or sort by
 
 ### 7.1 Uploads
 
-- Text: raw body to `/upload/text`; response is `201` with only the text.
-- Files: multipart to `/upload/file`, repeated part name `files`; response is
-  `200` with an array of full items.
+- Both endpoints require an existing `chatId`.
+- Text: raw body to `/upload/text?chatId=<id>`; response is `201` with only the
+  text.
+- Files: multipart to `/upload/file?chatId=<id>`, repeated part name `files`;
+  response is `200` with an array of full items.
 - Empty file parts are skipped.
 - Multi-file upload is all-or-nothing on the server.
 - The server streams to disk; it does not buffer whole files in heap.
@@ -841,12 +910,14 @@ Rules:
 
 ### 10.3 Timeline and live updates
 
-- Load the timeline with `GET /file` (oldest-first; reverse for display).
+- Load chats with `GET /chat`, then load the open chat's timeline with
+  `GET /file?chatId=<id>` (oldest-first; reverse for display).
 - Render text and links; preview raster images with `/preview/{id}`; play
   videos inline with the native player against `/preview/{id}`; show other
   files with name, size, and a download action.
 - Open `/messages?since=<highest seq>` while the app is in the foreground.
-- Handle `item-added`, `item-updated`, and `item-deleted` by id.
+- Handle `item-added`, `item-updated`, and `item-deleted` by id. Filter events
+  by the top-level `chatId` (it is present for deletes too) for the open chat.
 - Treat `heartbeat` as a liveness signal and update the connection status.
 - Reconnect with exponential backoff. On every reconnect or foreground resume,
   reload `GET /file` to reconcile deletes and updates that happened while
@@ -858,10 +929,10 @@ Rules:
 
 - Register `ACTION_SEND` and `ACTION_SEND_MULTIPLE` for `text/plain` and
   `*/*`.
-- Text/link shares: `POST /upload/text` with the text as the raw `text/plain`
-  body. Do not let a JSON converter wrap it in quotes.
-- File shares: `POST /upload/file` as multipart with one or more `files` parts.
-  Stream each part from its `content://` URI.
+- Text/link shares: `POST /upload/text?chatId=<id>` with the text as the raw
+  `text/plain` body. Do not let a JSON converter wrap it in quotes.
+- File shares: `POST /upload/file?chatId=<id>` as multipart with one or more
+  `files` parts. Stream each part from its `content://` URI.
 - Use WorkManager with a network constraint for background uploads. Retry with
   backoff on network failure.
 - Because uploads are not idempotent, avoid blind retries after a response may

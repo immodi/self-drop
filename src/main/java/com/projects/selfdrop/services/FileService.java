@@ -3,7 +3,9 @@ package com.projects.selfdrop.services;
 import com.projects.selfdrop.dtos.requests.*;
 import com.projects.selfdrop.dtos.responses.*;
 import com.projects.selfdrop.entities.File;
+import com.projects.selfdrop.exceptions.ChatNotFoundInDbException;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
+import com.projects.selfdrop.interfaces.IChatRepository;
 import com.projects.selfdrop.interfaces.IEventPublisher;
 import com.projects.selfdrop.interfaces.IFileRepository;
 import com.projects.selfdrop.interfaces.IFileService;
@@ -19,15 +21,18 @@ import java.util.List;
 @Service
 public class FileService implements IFileService {
     private final IFileRepository fileRepository;
+    private final IChatRepository chatRepository;
     private final FileMapper fileMapper;
     private final IEventPublisher<FileEvent> eventPublisher;
 
 
     public FileService(
             IFileRepository fileRepository,
+            IChatRepository chatRepository,
             FileMapper fileMapper,
             IEventPublisher<FileEvent> eventPublisher) {
         this.fileRepository = fileRepository;
+        this.chatRepository = chatRepository;
         this.fileMapper = fileMapper;
         this.eventPublisher = eventPublisher;
     }
@@ -42,15 +47,35 @@ public class FileService implements IFileService {
         return fileMapper.toDtos(fileRepository.findAll());
     }
 
+    public List<FileDto> getAllByChat(String chatId) {
+        requireChat(chatId);
+        return fileMapper.toDtos(fileRepository.findAllByChat(chatId));
+    }
+
     public List<FileDto> findSince(long seq) {
         return fileMapper.toDtos(fileRepository.findSince(seq));
+    }
+
+    public List<FileDto> findSinceByChat(String chatId, long seq) {
+        requireChat(chatId);
+        return fileMapper.toDtos(fileRepository.findSinceByChat(chatId, seq));
     }
 
     public List<FileDto> findLatest(int n) {
         return fileMapper.toDtos(fileRepository.findLatest(n));
     }
 
+    public List<FileDto> findLatestByChat(String chatId, int n) {
+        requireChat(chatId);
+        return fileMapper.toDtos(fileRepository.findLatestByChat(chatId, n));
+    }
+
+    public long maxSeq() {
+        return fileRepository.maxSeq();
+    }
+
     public FileDto create(CreateFileRequest request) {
+        requireChat(request.chatId());
         File file = fileMapper.toEntity(request, request.id(), Instant.now().getEpochSecond());
         fileRepository.create(file);
         FileDto dto = fileMapper.toDto(file);
@@ -61,7 +86,8 @@ public class FileService implements IFileService {
     public FileDto update(UpdateFileRequest request) {
         File existing = fileRepository.findById(request.id())
                 .orElseThrow(() -> new FileNotFoundInDbException(request.id()));
-        File updated = fileMapper.toEntity(request, existing.getId(), existing.getCreatedAt());
+        File updated = fileMapper.toEntity(
+                request, existing.getId(), existing.getChatId(), existing.getCreatedAt());
         updated.setSeq(existing.getSeq());
         if (!fileRepository.update(updated)) {
             throw new FileNotFoundInDbException(request.id());
@@ -79,5 +105,11 @@ public class FileService implements IFileService {
             throw new FileNotFoundInDbException(request.id());
         }
         eventPublisher.publish(FileEvent.deleted(fileMapper.toDto(existing)));
+    }
+
+    private void requireChat(String chatId) {
+        if (chatId == null || !chatRepository.existsById(chatId)) {
+            throw new ChatNotFoundInDbException(chatId);
+        }
     }
 }

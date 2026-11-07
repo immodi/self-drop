@@ -34,9 +34,11 @@ class UploadController {
     }
 
     @PostMapping("/text")
-    public ResponseEntity<TextDto> post(@RequestBody String text) {
+    public ResponseEntity<TextDto> post(
+            @RequestParam("chatId") String chatId,
+            @RequestBody String text) {
         String id = IdGenerator.generate();
-        CreateFileRequest createRequest = new UploadTextRequest(text).toCreateFileRequest(id);
+        CreateFileRequest createRequest = new UploadTextRequest(text).toCreateFileRequest(id, chatId);
         FileDto created = fileService.create(createRequest);
         return ResponseEntity
                 .created(URI.create("/file/" + created.id()))
@@ -44,7 +46,9 @@ class UploadController {
     }
 
     @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<List<FileDto>> upload(@RequestParam("files") List<MultipartFile> files) throws IOException {
+    public ResponseEntity<List<FileDto>> upload(
+            @RequestParam("chatId") String chatId,
+            @RequestParam("files") List<MultipartFile> files) throws IOException {
         List<FileDto> createdFiles = new ArrayList<>();
         List<String> storedKeys = new ArrayList<>();
 
@@ -65,7 +69,7 @@ class UploadController {
                         file.getOriginalFilename(),
                         file.getContentType(),
                         file.getSize())
-                        .toCreateFileRequest(id);
+                        .toCreateFileRequest(id, chatId);
 
                 FileDto created = fileService.create(createRequest);
                 createdFiles.add(created);

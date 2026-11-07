@@ -15,6 +15,7 @@ public class FileMapper {
         return new FileDto(
                 file.getSeq(),
                 file.getId(),
+                file.getChatId(),
                 file.getKind(),
                 file.getText(),
                 file.getName(),
@@ -31,6 +32,7 @@ public class FileMapper {
     public File toEntity(CreateFileRequest request, String id, Long createdAt) {
         return new File(
                 id,
+                request.chatId(),
                 request.kind(),
                 request.text(),
                 request.name(),
@@ -40,9 +42,10 @@ public class FileMapper {
         );
     }
 
-    public File toEntity(UpdateFileRequest request, String id, Long createdAt) {
+    public File toEntity(UpdateFileRequest request, String id, String chatId, Long createdAt) {
         return new File(
                 id,
+                chatId,
                 request.kind(),
                 request.text(),
                 request.name(),

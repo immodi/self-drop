@@ -17,6 +17,11 @@
     const connection = document.getElementById("connection");
     const connectionDot = document.getElementById("connection-dot");
     const connectionLabel = document.getElementById("connection-label");
+    const sidebar = document.getElementById("sidebar");
+    const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+    const sidebarOpen = document.getElementById("sidebar-open");
+    const sidebarClose = document.getElementById("sidebar-close");
+    const chatList = document.getElementById("chat-list");
     const toast = document.getElementById("toast");
     const toastDot = document.getElementById("toast-dot");
     const toastMessage = document.getElementById("toast-message");
@@ -62,6 +67,118 @@
             toast.classList.remove("flex");
         }, 2600);
     };
+
+    // ---------------------------------------------------------------- sidebar
+
+    const desktopQuery = window.matchMedia("(min-width: 768px)");
+    const SIDEBAR_KEY = "selfdrop:sidebar";
+
+    const storedSidebarOpen = () => {
+        try {
+            return window.localStorage.getItem(SIDEBAR_KEY) !== "closed";
+        } catch {
+            return true;
+        }
+    };
+
+    const setSidebar = (open, persist = true) => {
+        if (!sidebar) return;
+        const desktop = desktopQuery.matches;
+        sidebar.dataset.open = open ? "true" : "false";
+
+        sidebar.classList.toggle("-translate-x-full", !open);
+        sidebar.classList.toggle("translate-x-0", open);
+        if (desktop) {
+            sidebar.classList.toggle("md:hidden", !open);
+        } else {
+            sidebar.classList.remove("md:hidden");
+        }
+
+        if (sidebarBackdrop) {
+            sidebarBackdrop.classList.toggle("hidden", desktop || !open);
+        }
+        if (sidebarOpen) {
+            sidebarOpen.classList.toggle("md:hidden", desktop && open);
+            sidebarOpen.setAttribute("aria-expanded", String(open));
+        }
+        body.classList.toggle("overflow-hidden", !desktop && open);
+
+        if (persist) {
+            try {
+                window.localStorage.setItem(SIDEBAR_KEY, open ? "open" : "closed");
+            } catch {
+                // Private mode can reject writes; the toggle still works per page.
+            }
+        }
+    };
+
+    setSidebar(desktopQuery.matches ? storedSidebarOpen() : false, false);
+
+    sidebarOpen?.addEventListener("click", () => setSidebar(true));
+    sidebarClose?.addEventListener("click", () => setSidebar(false));
+    sidebarBackdrop?.addEventListener("click", () => setSidebar(false));
+
+    desktopQuery.addEventListener("change", (event) => {
+        setSidebar(event.matches ? storedSidebarOpen() : false, false);
+    });
+
+    // ----------------------------------------------------------- chat renaming
+
+    const closeChatRename = (item) => {
+        if (!item) return;
+        const row = item.querySelector("[data-chat-row]");
+        const form = item.querySelector("[data-rename-form]");
+        row?.classList.remove("hidden");
+        row?.classList.add("flex");
+        form?.classList.add("hidden");
+        form?.classList.remove("flex");
+    };
+
+    const closeAllChatRenames = () => {
+        chatList?.querySelectorAll("li").forEach(closeChatRename);
+    };
+
+    chatList?.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element)) return;
+
+        const cancel = event.target.closest("[data-chat-rename-cancel]");
+        if (cancel) {
+            closeChatRename(cancel.closest("li"));
+            return;
+        }
+
+        const rename = event.target.closest("[data-chat-rename]");
+        if (!rename) return;
+
+        const item = rename.closest("li");
+        const form = item?.querySelector("[data-rename-form]");
+        const row = item?.querySelector("[data-chat-row]");
+        const input = form?.querySelector("input[name='name']");
+        if (!item || !form || !row) return;
+
+        closeAllChatRenames();
+        row.classList.add("hidden");
+        row.classList.remove("flex");
+        form.classList.remove("hidden");
+        form.classList.add("flex");
+        input?.focus();
+        input?.select();
+    });
+
+    chatList?.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !(event.target instanceof Element)) return;
+        const form = event.target.closest("[data-rename-form]");
+        if (!form) return;
+        event.preventDefault();
+        event.stopPropagation();
+        closeChatRename(form.closest("li"));
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || sidebar?.dataset.open !== "true") return;
+        setSidebar(false);
+        sidebarOpen?.focus();
+    });
 
     // -------------------------------------------------------------- connection
 

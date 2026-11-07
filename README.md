@@ -4,7 +4,7 @@ Selfdrop is a small, self-hosted inbox for your own devices. Drop text, links, i
 
 ## Highlights
 
-- Text, links, images, and arbitrary files in one timeline
+- Multiple chat rooms, each with its own timeline of text, links, images, and files
 - Multi-file uploads with streaming writes and atomic renames
 - File downloads streamed straight from disk
 - Built-in responsive web UI served by the backend
@@ -15,8 +15,11 @@ Selfdrop is a small, self-hosted inbox for your own devices. Drop text, links, i
 
 ## Web UI
 
-Open the application in a browser and use the built-in timeline:
+Open the application in a browser and use the built-in chat UI:
 
+- Create as many chat rooms as you need and switch between them from a collapsible sidebar, like a chat app
+- Rename a chat inline from its sidebar row; deleting a chat removes its items and files
+- Every item belongs to exactly one chat
 - Text and links render inline; links are clickable
 - Images are previewed inline; other files show name, size, and a download action
 - Compose box with Enter to send and Shift+Enter for a newline
@@ -94,6 +97,7 @@ Full item responses use this shape (the text-upload response is only `{"text":".
 {
   "seq": 42,
   "id": "8f14e45f-ea4b-4c3a-9f6e-0d3f6c2b1a77",
+  "chatId": "3c1d8d7a-5f60-4a7d-9f2e-1b6a0c4d8e21",
   "kind": "file",
   "text": null,
   "name": "photo.jpg",
@@ -103,44 +107,57 @@ Full item responses use this shape (the text-upload response is only `{"text":".
 }
 ```
 
-`kind` is either `text` or `file`. `createdAt` is Unix epoch **seconds**. `seq` is the SQLite sequence and is the cursor for `after=` and SSE. Item ids are UUID strings. For text items, `size` is Java `String.length()`; for file items it is the uploaded byte count and may not match the bytes on disk.
+`chatId` is the owning chat. `kind` is either `text` or `file`. `createdAt` is Unix epoch **seconds**. `seq` is the SQLite sequence and is the cursor for `after=` and SSE. Item ids are UUID strings. For text items, `size` is Java `String.length()`; for file items it is the uploaded byte count and may not match the bytes on disk.
+
+Chat objects use `{"seq":1,"id":"<uuid>","name":"General","createdAt":1761300000}`.
 
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/ping` | Server identity: `{"id":"<server-id>"}` |
-| `GET` | `/file` | All items, oldest first by `createdAt` then `seq` |
-| `GET` | `/file?limit=N` | Newest `N` items (`N` is clamped to 1–100), newest first |
-| `GET` | `/file?after=<seq>` | Items with `seq > <seq>`, ordered by `seq` |
+| `GET` | `/chat` | All chats, oldest first |
+| `GET` | `/chat/{id}` | One chat |
+| `POST` | `/chat` | Create a chat from `{"name":"..."}` (201, `Location: /chat/<id>`) |
+| `PUT` | `/chat` | Rename a chat from `{"id":"...","name":"..."}` |
+| `DELETE` | `/chat/{id}` | Delete a chat, its items, and their files (204 No Content) |
+| `GET` | `/file` | All items across chats, oldest first by `createdAt` then `seq` |
+| `GET` | `/file?chatId=<id>` | Items in one chat, oldest first |
+| `GET` | `/file?chatId=<id>&limit=N` | Newest `N` items in one chat (`N` is clamped to 1–100) |
+| `GET` | `/file?chatId=<id>&after=<seq>` | Items in one chat with `seq > <seq>` |
 | `GET` | `/file/{id}` | One item's metadata |
 | `PUT` | `/file` | Replace an item's kind, text, name, mime, and size |
 | `DELETE` | `/file/{id}` | Remove an item (204 No Content) |
-| `POST` | `/upload/text` | Create a text item from a raw `text/plain` body |
-| `POST` | `/upload/file` | Upload one or more multipart `files` |
+| `POST` | `/upload/text?chatId=<id>` | Create a text item in a chat from a raw `text/plain` body |
+| `POST` | `/upload/file?chatId=<id>` | Upload one or more multipart `files` to a chat |
 | `GET` | `/download/{id}` | Download the stored file as an attachment; supports single byte ranges |
 | `GET` | `/preview/{id}` | Inline preview for raster images and videos (SVG is excluded) |
 | `GET` | `/messages` | Server-Sent Events stream for live updates |
 | `GET` | `/settings/address` | Current advertised address (loopback only) |
 | `POST` | `/settings/address` | Save an address override (loopback only) |
 
-`after` takes precedence when both `after` and `limit` are supplied. The `after` response is ordered by sequence; the `limit` response is newest-first. `GET /file` is a bare array, not an envelope.
+`after` takes precedence when both `after` and `limit` are supplied. The `after` response is ordered by sequence; the `limit` response is newest-first. `GET /file` is a bare array, not an envelope. Omitting `chatId` lists every item; passing an unknown `chatId` returns `404`.
 
 There is no authentication, CORS, Origin check, storage quota, or automatic expiry. Anyone who can reach port 8080 can read, post, update, and delete items. Keep the server on the LAN.
 
 ### Uploads
 
 ```bash
+# Create a chat first (the response contains its id)
+curl -X POST http://localhost:8080/chat \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"General"}'
+
 # Text or link
-curl -X POST http://localhost:8080/upload/text \
+curl -X POST 'http://localhost:8080/upload/text?chatId=<chat-id>' \
      -H 'Content-Type: text/plain' \
      --data 'https://example.com'
 
 # One or more files
-curl -X POST http://localhost:8080/upload/file \
+curl -X POST 'http://localhost:8080/upload/file?chatId=<chat-id>' \
      -F 'files=@photo.jpg' \
      -F 'files=@notes.pdf'
 ```
 
-Text uploads return `201 Created` with `Location: /file/<id>` and a body of only `{"text":"..."}`. Use `Location`, `GET /file/{id}`, or the SSE stream to get the full item. The text body is required; an empty body returns `400`. File uploads return `200 OK` with a bare array of full items, in upload order. The multipart part name must be `files`; repeat it for multiple files. Empty file parts are skipped. Missing `files` returns `400`.
+Text uploads return `201 Created` with `Location: /file/<id>` and a body of only `{"text":"..."}`. Use `Location`, `GET /file/{id}`, or the SSE stream to get the full item. The text body is required; an empty body returns `400`. File uploads return `200 OK` with a bare array of full items, in upload order. The multipart part name must be `files`; repeat it for multiple files. Empty file parts are skipped. Missing `files` returns `400`. Both upload endpoints require `chatId`; omitting it returns `400`, and an unknown chat returns `404`.
 
 Uploads are streamed to disk, not buffered in memory. A failed multi-file upload rolls back the rows and bytes it created. There is no idempotency key, so retrying an ambiguous upload can create duplicates.
 
@@ -183,7 +200,7 @@ Events are named `item-added`, `item-updated`, and `item-deleted`. The SSE `id:`
 {"type":"item-added","id":"<item-id>","seq":42,"item":{...}}
 ```
 
-`item` is the full item for adds/updates and `null` for deletes. Replay only covers adds, so a client that was offline can miss deletes and updates. Reload `GET /file` on reconnect or foreground resume, then apply events.
+`item` is the full item for adds/updates and `null` for deletes. Every event carries `chatId`, so a client can filter the stream to the open chat. Replay only covers adds, so a client that was offline can miss deletes and updates. Reload `GET /file?chatId=<id>` on reconnect or foreground resume, then apply events.
 
 ### Settings
 
@@ -211,7 +228,7 @@ Most errors are RFC 9457 `ProblemDetail` responses; the `416` download-range res
 }
 ```
 
-The API returns `400` for invalid input, `403` for non-loopback settings access, `404` for missing items, `405` for unsupported methods, `413` for oversized uploads, `415` for unsupported content types, `416` for unsatisfiable download ranges, and `500` for unexpected failures. There is no `401`; the API has no authentication.
+The API returns `400` for invalid input, `403` for non-loopback settings access, `404` for missing items or chats, `405` for unsupported methods, `413` for oversized uploads, `415` for unsupported content types, `416` for unsatisfiable download ranges, and `500` for unexpected failures. There is no `401`; the API has no authentication.
 
 ## Android client
 
@@ -219,8 +236,8 @@ The Android app is a separate client of this HTTP API. The important pieces are:
 
 - Use plain HTTP to `http://<host>:8080`; Android needs a cleartext network security config, and newer versions may also require a local-network permission.
 - Discover the server with a cached address, the Worker record, an optional `/24` scan on port 8080, or the `selfdrop://pair?u=<url>&id=<id>` QR link. Verify `/ping`'s `id` before using an address.
-- Load the timeline with `GET /file`, then stream `/messages?since=<seq>` while in the foreground. Handle `item-added`, `item-updated`, `item-deleted`, and `heartbeat`; reload `GET /file` on reconnect because deletes are not replayed.
-- Upload text with `POST /upload/text` (raw body) and files with multipart `POST /upload/file` using repeated `files` parts. Stream from `content://` URIs; do not buffer whole files.
+- Load the chat list with `GET /chat`, then load the open chat with `GET /file?chatId=<id>` and stream `/messages?since=<seq>` while in the foreground. Handle `item-added`, `item-updated`, `item-deleted`, and `heartbeat`, filtering events by `item.chatId`; reload the open chat on reconnect because deletes are not replayed.
+- Upload text with `POST /upload/text?chatId=<id>` (raw body) and files with multipart `POST /upload/file?chatId=<id>` using repeated `files` parts. Stream from `content://` URIs; do not buffer whole files.
 - Download with `/download/{id}` and resume using `Range`; use `/preview/{id}` for raster images and videos. Use `Content-Length` for a full response and `Content-Range` for the total on a `206`, not the metadata `size`.
 - There is no authentication, no idempotency key, and no upload quota. Keep the server on the LAN.
 
@@ -228,7 +245,8 @@ See [spec.md](spec.md) for the complete request/response contract, SSE framing, 
 
 ## Storage and persistence
 
-- Item metadata lives in SQLite (default `./data/app.db`), table `files`
+- Chat metadata lives in SQLite (default `./data/app.db`), table `chats`
+- Item metadata lives in SQLite, table `files`, with a `chat_id` foreign key
 - File bytes live under `storage.root` (default `./data/files`), named by item id
 - The server id is stored in `./data/server-id` and survives restarts
 - The last published Worker record is remembered in `./data/worker-state.json`

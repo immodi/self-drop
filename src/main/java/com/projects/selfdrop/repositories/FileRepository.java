@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataAccessException;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -19,7 +18,7 @@ import java.util.Optional;
 public class FileRepository implements IFileRepository {
     private static final BeanPropertyRowMapper<File> ROW_MAPPER = new BeanPropertyRowMapper<>(File.class);
     private static final String COLUMNS =
-            "seq, id, kind, text, name, mime, size, created_at";
+            "seq, id, chat_id, kind, text, name, mime, size, created_at";
     private static final Logger log = LoggerFactory.getLogger(FileRepository.class);
     private final JdbcTemplate jdbcTemplate;
 
@@ -32,15 +31,46 @@ public class FileRepository implements IFileRepository {
         return jdbcTemplate.query(sql, ROW_MAPPER);
     }
 
+    public List<File> findAllByChat(String chatId) {
+        String sql = "SELECT %s FROM files WHERE chat_id = ? ORDER BY created_at, seq".formatted(COLUMNS);
+        return jdbcTemplate.query(sql, ROW_MAPPER, chatId);
+    }
+
     public List<File> findSince(long seq) {
         String sql = "SELECT %s FROM files WHERE seq > ? ORDER BY seq".formatted(COLUMNS);
         return jdbcTemplate.query(sql, ROW_MAPPER, seq);
+    }
+
+    public List<File> findSinceByChat(String chatId, long seq) {
+        String sql = """
+                SELECT %s FROM files
+                WHERE chat_id = ? AND seq > ?
+                ORDER BY seq
+                """.formatted(COLUMNS);
+        return jdbcTemplate.query(sql, ROW_MAPPER, chatId, seq);
     }
 
     public List<File> findLatest(int n) {
         int limit = Math.clamp(n, 1, 100);
         String sql = "SELECT %s FROM files ORDER BY created_at DESC, seq DESC LIMIT ?".formatted(COLUMNS);
         return jdbcTemplate.query(sql, ROW_MAPPER, limit);
+    }
+
+    public List<File> findLatestByChat(String chatId, int n) {
+        int limit = Math.clamp(n, 1, 100);
+        String sql = """
+                SELECT %s FROM files
+                WHERE chat_id = ?
+                ORDER BY created_at DESC, seq DESC
+                LIMIT ?
+                """.formatted(COLUMNS);
+        return jdbcTemplate.query(sql, ROW_MAPPER, chatId, limit);
+    }
+
+    public long maxSeq() {
+        Long value = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(seq), 0) FROM files", Long.class);
+        return value != null ? value : 0L;
     }
 
     public Optional<File> findById(String id) {
@@ -61,12 +91,13 @@ public class FileRepository implements IFileRepository {
 
     public void create(File file) {
         String sql = """
-                INSERT INTO files (id, kind, text, name, mime, size, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO files (id, chat_id, kind, text, name, mime, size, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING seq
                 """;
         Long seq = jdbcTemplate.queryForObject(sql, Long.class,
                 file.getId(),
+                file.getChatId(),
                 file.getKind(),
                 file.getText(),
                 file.getName(),

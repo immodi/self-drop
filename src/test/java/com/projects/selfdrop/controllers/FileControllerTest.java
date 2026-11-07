@@ -35,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(FileController.class)
 public class FileControllerTest {
+    private static final String CHAT_ID = "chat-1";
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -51,7 +53,7 @@ public class FileControllerTest {
 
     @BeforeEach
     void setUp() {
-        fileDto = new FileDto(1L, "1", "file", null, "file.txt", "text/plain", 10L, 1000L);
+        fileDto = new FileDto(1L, "1", CHAT_ID, "file", null, "file.txt", "text/plain", 10L, 1000L);
     }
 
     @Test
@@ -64,6 +66,7 @@ public class FileControllerTest {
         mockMvc.perform(get("/file/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("1"))
+                .andExpect(jsonPath("$.chatId").value(CHAT_ID))
                 .andExpect(jsonPath("$.kind").value("file"))
                 .andExpect(jsonPath("$.name").value("file.txt"))
                 .andExpect(jsonPath("$.mime").value("text/plain"))
@@ -86,7 +89,7 @@ public class FileControllerTest {
 
     @Test
     void shouldGetAllFiles() throws Exception {
-        FileDto text = new FileDto(2L, "2", "text", "hello", null, null, 5L, 2000L);
+        FileDto text = new FileDto(2L, "2", CHAT_ID, "text", "hello", null, null, 5L, 2000L);
         when(fileService.getAll()).thenReturn(List.of(fileDto, text));
 
         mockMvc.perform(get("/file"))
@@ -132,6 +135,45 @@ public class FileControllerTest {
     }
 
     @Test
+    void shouldGetFilesForOneChat() throws Exception {
+        when(fileService.getAllByChat(CHAT_ID)).thenReturn(List.of(fileDto));
+
+        mockMvc.perform(get("/file").param("chatId", CHAT_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].chatId").value(CHAT_ID));
+
+        verify(fileService).getAllByChat(CHAT_ID);
+        verify(fileService, never()).getAll();
+    }
+
+    @Test
+    void shouldGetChatFilesAfterSeq() throws Exception {
+        when(fileService.findSinceByChat(CHAT_ID, 5L)).thenReturn(List.of(fileDto));
+
+        mockMvc.perform(get("/file")
+                        .param("chatId", CHAT_ID)
+                        .param("after", "5"))
+                .andExpect(status().isOk());
+
+        verify(fileService).findSinceByChat(CHAT_ID, 5L);
+        verify(fileService, never()).findSince(5L);
+    }
+
+    @Test
+    void shouldGetLatestChatFiles() throws Exception {
+        when(fileService.findLatestByChat(CHAT_ID, 2)).thenReturn(List.of(fileDto));
+
+        mockMvc.perform(get("/file")
+                        .param("chatId", CHAT_ID)
+                        .param("limit", "2"))
+                .andExpect(status().isOk());
+
+        verify(fileService).findLatestByChat(CHAT_ID, 2);
+        verify(fileService, never()).findLatest(2);
+    }
+
+    @Test
     void shouldGetLatestFiles() throws Exception {
         when(fileService.findLatest(2)).thenReturn(List.of(fileDto));
 
@@ -170,7 +212,7 @@ public class FileControllerTest {
     @Test
     void shouldUpdateFile() throws Exception {
         UpdateFileRequest request = new UpdateFileRequest("1", "text", "updated", null, null, 7L);
-        FileDto updated = new FileDto(1L, "1", "text", "updated", null, null, 7L, 1000L);
+        FileDto updated = new FileDto(1L, "1", CHAT_ID, "text", "updated", null, null, 7L, 1000L);
         when(fileService.update(request)).thenReturn(updated);
 
         mockMvc.perform(put("/file")

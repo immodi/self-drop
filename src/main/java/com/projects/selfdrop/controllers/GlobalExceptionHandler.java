@@ -1,5 +1,6 @@
 package com.projects.selfdrop.controllers;
 
+import com.projects.selfdrop.exceptions.ChatNotFoundInDbException;
 import com.projects.selfdrop.exceptions.FileNotFoundInDbException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -37,6 +38,13 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleFileNotFound(FileNotFoundInDbException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("File not found");
+        return problem;
+    }
+
+    @ExceptionHandler(ChatNotFoundInDbException.class)
+    public ProblemDetail handleChatNotFound(ChatNotFoundInDbException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Chat not found");
         return problem;
     }
 

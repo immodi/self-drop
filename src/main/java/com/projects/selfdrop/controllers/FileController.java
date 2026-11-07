@@ -29,10 +29,19 @@ class FileController {
 
     @GetMapping
     public ResponseEntity<List<FileDto>> getAll(
+            @RequestParam(required = false) String chatId,
             @RequestParam(required = false) Long after,
             @RequestParam(required = false) Integer limit) {
         List<FileDto> files;
-        if (after != null) {
+        if (chatId != null) {
+            if (after != null) {
+                files = fileService.findSinceByChat(chatId, after);
+            } else if (limit != null) {
+                files = fileService.findLatestByChat(chatId, limit);
+            } else {
+                files = fileService.getAllByChat(chatId);
+            }
+        } else if (after != null) {
             files = fileService.findSince(after);
         } else if (limit != null) {
             files = fileService.findLatest(limit);
