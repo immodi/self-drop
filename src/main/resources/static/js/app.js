@@ -177,6 +177,65 @@
         closeChatRename(form.closest("li"));
     });
 
+    // ----------------------------------------------------------- media previews
+
+    const loadedPreviews = new Set();
+
+    const loadPreview = (button, remember = true) => {
+        if (!(button instanceof Element) || button.dataset.previewLoaded === "true") return;
+
+        const container = button.closest("[data-preview-container]");
+        const template = container?.querySelector("template[data-preview-template]");
+        if (!container || !(template instanceof HTMLTemplateElement)) return;
+
+        const fragment = template.content.cloneNode(true);
+        const media = fragment.querySelector("[data-preview-src]");
+        if (!(media instanceof HTMLImageElement) && !(media instanceof HTMLVideoElement)) return;
+
+        const src = media.getAttribute("data-preview-src");
+        if (!src) return;
+
+        if (remember && button.dataset.previewId) {
+            loadedPreviews.add(button.dataset.previewId);
+        }
+
+        const article = button.closest("article");
+        const isVideo = media instanceof HTMLVideoElement;
+        const imageTrigger = media.closest("[data-lightbox-src]");
+
+        media.addEventListener("error", () => {
+            (imageTrigger || media).replaceWith(button);
+            button.disabled = false;
+            button.dataset.previewLoaded = "false";
+            if (button.dataset.previewId) loadedPreviews.delete(button.dataset.previewId);
+            if (isVideo) {
+                const fullscreen = article?.querySelector("[data-video-fullscreen]");
+                fullscreen?.classList.add("hidden");
+                fullscreen?.classList.remove("inline-flex");
+            }
+            showToast(isVideo ? "Could not load video preview" : "Could not load image preview", true);
+        }, { once: true });
+
+        media.removeAttribute("data-preview-src");
+        button.dataset.previewLoaded = "true";
+        button.replaceWith(fragment);
+
+        if (isVideo) {
+            const fullscreen = article?.querySelector("[data-video-fullscreen]");
+            fullscreen?.classList.remove("hidden");
+            fullscreen?.classList.add("inline-flex");
+        }
+
+        media.setAttribute("src", src);
+    };
+
+    const restoreLoadedPreviews = () => {
+        if (loadedPreviews.size === 0) return;
+        timeline?.querySelectorAll("[data-preview-load]").forEach((button) => {
+            if (loadedPreviews.has(button.dataset.previewId)) loadPreview(button, false);
+        });
+    };
+
     // ------------------------------------------------------------- media viewer
 
     let lightboxLockedScroll = false;
@@ -230,6 +289,13 @@
 
     document.addEventListener("click", (event) => {
         if (!(event.target instanceof Element)) return;
+
+        const preview = event.target.closest("[data-preview-load]");
+        if (preview) {
+            event.preventDefault();
+            loadPreview(preview);
+            return;
+        }
 
         const fullscreen = event.target.closest("[data-video-fullscreen]");
         if (fullscreen) {
@@ -580,8 +646,13 @@
         }
     });
 
-    body.addEventListener("htmx:afterSwap", updateCount);
-    body.addEventListener("htmx:afterSettle", updateCount);
+    const afterTimelineUpdate = () => {
+        updateCount();
+        restoreLoadedPreviews();
+    };
+
+    body.addEventListener("htmx:afterSwap", afterTimelineUpdate);
+    body.addEventListener("htmx:afterSettle", afterTimelineUpdate);
 
     body.addEventListener("htmx:responseError", (event) => {
         let message = "Request failed";

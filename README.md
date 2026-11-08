@@ -175,7 +175,7 @@ curl -C - -OJ http://localhost:8080/download/<id>
 
 A satisfiable range returns `206 Partial Content` with `Content-Range`; an unsatisfiable range returns `416` with `Content-Range: bytes */<size>`. Multiple or malformed ranges fall back to the full file with `200`. There is no `ETag` or `Last-Modified`.
 
-`GET /preview/{id}` serves raster images and videos inline for the timeline; videos use the browser's native player. SVG is deliberately excluded, and every non-previewable type returns `404` there; use `/download/{id}` instead. Preview responses are streamed from disk with `Content-Length` from the stored file size and support the same single byte ranges as downloads, so video playback can seek.
+`GET /preview/{id}` serves raster images and videos inline for the timeline; videos use the browser's native player. SVG is deliberately excluded, and every non-previewable type returns `404` there; use `/download/{id}` instead. Preview responses are streamed from disk with `Content-Length` from the stored file size and support the same single byte ranges as downloads, so video playback can seek. The web UI shows a placeholder for each image or video and only requests the preview after you press its preview button, so opening a chat does not download every preview up front.
 
 ### Update
 
