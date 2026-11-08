@@ -14,7 +14,7 @@ TAILWIND_CACHE ?= $(HOME)/.cache/selfdrop/tailwind-$(TAILWIND_VERSION)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help tailwind-deps css css-watch build test check run dev clean clean-data clean-tailwind
+.PHONY: help tailwind-deps css css-watch build test check run dev image image-full clean clean-data clean-tailwind
 
 ## Show the available targets.
 help:
@@ -29,6 +29,8 @@ help:
 	@echo "  make check           Alias for test"
 	@echo "  make run             Start the application on http://localhost:8080/"
 	@echo "  make dev             Run css-watch and the application together"
+	@echo "  make image           Build the jar, then the Docker image"
+	@echo "  make image-full      Build the Docker image entirely inside Docker"
 	@echo "  make clean           Remove Gradle build output"
 	@echo "  make clean-data      Remove the local SQLite database and stored files"
 	@echo "  make clean-tailwind  Remove the cached Tailwind CLI"
@@ -79,6 +81,15 @@ run:
 ## Run css-watch and the application together.
 dev:
 	$(MAKE) -j2 css-watch run
+
+## Build the jar on the host, then the Docker image that packages it.
+image:
+	$(GRADLE) bootJar
+	docker compose build
+
+## Build the image entirely inside Docker (needs network; CI/fresh machine).
+image-full:
+	docker build -f Dockerfile.build -t selfdrop:local .
 
 ## Remove Gradle build output.
 clean:

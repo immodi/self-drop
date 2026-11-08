@@ -1,18 +1,9 @@
-# Build the application with the same JDK major version the project targets.
-FROM eclipse-temurin:27-jdk AS build
-
-WORKDIR /workspace
-
-COPY gradle gradle
-COPY gradlew settings.gradle build.gradle ./
-RUN ./gradlew --no-daemon dependencies
-
-COPY src src
-RUN ./gradlew --no-daemon bootJar \
-    && cp "$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' -print -quit)" /workspace/app.jar
-
-# Run it with a small, non-root runtime image.
+# Package an already-built Spring Boot jar. Building the jar on the host (not in
+# an image) keeps this build free of Maven/Gradle downloads and reusable with an
+# offline Gradle cache. Run `make image` (or ./gradlew bootJar) first.
 FROM eclipse-temurin:27-jre
+
+ARG APP_JAR=build/libs/selfdrop-0.0.1-SNAPSHOT.jar
 
 WORKDIR /app
 
@@ -23,7 +14,7 @@ RUN groupmod -n selfdrop ubuntu \
     && mkdir -p /app/data /var/tmp/selfdrop-uploads \
     && chown -R selfdrop:selfdrop /app /var/tmp/selfdrop-uploads
 
-COPY --from=build /workspace/app.jar /app/app.jar
+COPY ${APP_JAR} /app/app.jar
 
 ENV JAVA_TOOL_OPTIONS="-Xmx256m"
 EXPOSE 8080

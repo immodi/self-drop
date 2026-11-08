@@ -330,13 +330,31 @@ The app listens on every interface, and the footer shows the detected LAN URL (f
 
 ## Docker
 
-Build and start the container with Compose:
+Build the jar on the host, then build and start the container with Compose:
 
 ```bash
-docker compose up -d --build
+make image
 docker compose logs -f
 docker compose down
 ```
+
+The image only packages an already-built `build/libs/*-SNAPSHOT.jar`, so it never
+downloads Gradle, the JDK toolchain, or Maven artifacts. This works with a
+populated local Gradle cache, including `./gradlew --offline bootJar`. If you
+change the sources, run `make image` again (or `./gradlew bootJar && docker
+compose build`).
+
+To build the image entirely inside Docker instead — useful in CI or on a fresh
+machine without a local Gradle cache — run:
+
+```bash
+make image-full
+```
+
+That uses `Dockerfile.build`, which compiles the app in a JDK stage and therefore
+needs network access for the Gradle wrapper and dependencies. Both targets tag
+the image as `selfdrop:local`, so `docker compose up -d` runs whichever one you
+built last.
 
 The container uses `network_mode: host`, so it binds directly to the host's interfaces and the detected LAN address is the host's real address. It mounts `./data` at `/app/data`, reads `WORKER_URL` and `WORKER_TOKEN` from the shell or `.env`, and uses `restart: unless-stopped`, so it starts again whenever Docker starts, including after a reboot.
 

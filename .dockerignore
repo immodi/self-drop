@@ -1,7 +1,11 @@
 .git
 .gradle
 .idea
-build
+# Only the runnable bootJar is needed; keep the rest of build/ out of the context.
+build/*
+!build/libs
+build/libs/*
+!build/libs/*-SNAPSHOT.jar
 data
 worker
 .env
