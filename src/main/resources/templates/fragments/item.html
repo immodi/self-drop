@@ -5,12 +5,12 @@
          class="group relative rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
 
     <th:block th:if="${item.image or item.video}">
-        <div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 dark:border-slate-800"
+        <div class="relative min-h-40 overflow-hidden rounded-xl border border-slate-200 bg-slate-950 dark:border-slate-800"
              data-preview-container>
             <button type="button"
                     th:attr="data-preview-load=@{/preview/{id}(id=${item.id})},data-preview-id=${item.id},data-preview-kind=${item.video ? 'video' : 'image'},data-preview-alt=${item.name}"
                     th:title="${item.video ? 'Preview video' : 'Preview image'}"
-                    class="flex w-full flex-col items-center justify-center gap-2 bg-slate-100 px-4 py-10 text-slate-500 transition hover:bg-slate-200/70 hover:text-slate-700 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                    class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-100 px-4 text-slate-500 transition hover:bg-slate-200/70 hover:text-slate-700 dark:bg-slate-800/60 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200">
                 <svg th:if="${item.image}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="size-7" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/>
                 </svg>
@@ -18,31 +18,26 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="m5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"/>
                 </svg>
                 <span class="text-sm font-medium" th:text="${item.video ? 'Preview video' : 'Preview image'}"></span>
-                <span class="max-w-full truncate text-xs text-slate-400 dark:text-slate-500" th:text="${item.name}"></span>
             </button>
 
-            <template th:if="${item.image}" data-preview-template>
-                <button type="button"
-                        th:attr="data-lightbox-src=@{/preview/{id}(id=${item.id})},data-lightbox-alt=${item.name}"
-                        class="block w-full cursor-zoom-in"
-                        title="View image full screen" aria-label="View image full screen">
-                    <img th:attr="data-preview-src=@{/preview/{id}(id=${item.id})}"
-                         th:alt="${item.name}"
-                         loading="lazy"
-                         decoding="async"
-                         class="block max-h-[70vh] w-full object-contain sm:max-h-[32rem]">
-                </button>
-            </template>
-            <template th:if="${item.video}" data-preview-template>
-                <video th:attr="data-preview-src=@{/preview/{id}(id=${item.id})}"
-                       controls
-                       playsinline
-                       preload="metadata"
-                       th:title="${item.name}"
-                       class="block max-h-[70vh] w-full bg-black object-contain sm:max-h-[32rem]">
-                    <a th:href="@{/download/{id}(id=${item.id})}" th:text="${item.name}"></a>
-                </video>
-            </template>
+            <button th:if="${item.image}" type="button" data-preview-target
+                    th:attr="data-lightbox-src=@{/preview/{id}(id=${item.id})},data-lightbox-alt=${item.name}"
+                    class="hidden w-full cursor-zoom-in"
+                    title="View image full screen" aria-label="View image full screen">
+                <img th:attr="data-preview-src=@{/preview/{id}(id=${item.id})}"
+                     th:alt="${item.name}"
+                     decoding="async"
+                     class="block max-h-[70vh] w-full object-contain sm:max-h-[32rem]">
+            </button>
+            <video th:if="${item.video}" data-preview-target
+                   th:attr="data-preview-src=@{/preview/{id}(id=${item.id})}"
+                   controls
+                   playsinline
+                   preload="metadata"
+                   th:title="${item.name}"
+                   class="hidden max-h-[70vh] w-full bg-black object-contain sm:max-h-[32rem]">
+                <a th:href="@{/download/{id}(id=${item.id})}" th:text="${item.name}"></a>
+            </video>
         </div>
 
         <div class="mt-2 flex items-center gap-2 px-0.5 pb-0.5">

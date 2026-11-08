@@ -185,12 +185,12 @@
         if (!(button instanceof Element) || button.dataset.previewLoaded === "true") return;
 
         const container = button.closest("[data-preview-container]");
-        const template = container?.querySelector("template[data-preview-template]");
-        if (!container || !(template instanceof HTMLTemplateElement)) return;
-
-        const fragment = template.content.cloneNode(true);
-        const media = fragment.querySelector("[data-preview-src]");
-        if (!(media instanceof HTMLImageElement) && !(media instanceof HTMLVideoElement)) return;
+        const media = container?.querySelector("[data-preview-src]");
+        const target = container?.querySelector("[data-preview-target]");
+        if (!container || !target
+                || (!(media instanceof HTMLImageElement) && !(media instanceof HTMLVideoElement))) {
+            return;
+        }
 
         const src = media.getAttribute("data-preview-src");
         if (!src) return;
@@ -201,32 +201,36 @@
 
         const article = button.closest("article");
         const isVideo = media instanceof HTMLVideoElement;
-        const imageTrigger = media.closest("[data-lightbox-src]");
+        const reveal = () => {
+            container.classList.remove("min-h-40");
+            target.classList.remove("hidden");
+            target.classList.add("block");
+            button.remove();
+
+            if (isVideo) {
+                const fullscreen = article?.querySelector("[data-video-fullscreen]");
+                fullscreen?.classList.remove("hidden");
+                fullscreen?.classList.add("inline-flex");
+            }
+        };
 
         media.addEventListener("error", () => {
-            (imageTrigger || media).replaceWith(button);
+            media.removeAttribute("src");
+            if (isVideo) media.load();
             button.disabled = false;
             button.dataset.previewLoaded = "false";
             if (button.dataset.previewId) loadedPreviews.delete(button.dataset.previewId);
-            if (isVideo) {
-                const fullscreen = article?.querySelector("[data-video-fullscreen]");
-                fullscreen?.classList.add("hidden");
-                fullscreen?.classList.remove("inline-flex");
-            }
             showToast(isVideo ? "Could not load video preview" : "Could not load image preview", true);
         }, { once: true });
+        media.addEventListener(isVideo ? "loadedmetadata" : "load", reveal, { once: true });
 
-        media.removeAttribute("data-preview-src");
+        button.disabled = true;
         button.dataset.previewLoaded = "true";
-        button.replaceWith(fragment);
-
-        if (isVideo) {
-            const fullscreen = article?.querySelector("[data-video-fullscreen]");
-            fullscreen?.classList.remove("hidden");
-            fullscreen?.classList.add("inline-flex");
-        }
-
         media.setAttribute("src", src);
+
+        if (isVideo && remember) {
+            media.play().catch(() => {});
+        }
     };
 
     const restoreLoadedPreviews = () => {
