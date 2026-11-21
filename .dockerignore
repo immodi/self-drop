@@ -8,6 +8,7 @@ build/libs/*
 !build/libs/*-SNAPSHOT.jar
 data
 worker
+android
 .env
 .env.*
 *.md

@@ -8,6 +8,7 @@ Selfdrop is a small, self-hosted inbox for your own devices. Drop text, links, i
 - Multi-file uploads with streaming writes and atomic renames
 - File downloads streamed straight from disk
 - Built-in responsive web UI served by the backend
+- Native Android client in Kotlin + Jetpack Compose
 - SQLite metadata and on-disk file storage
 - Persistent server identity, exposed by a health endpoint
 - JSON errors with consistent `ProblemDetail` responses (`416` ranges are header-only)
@@ -230,18 +231,48 @@ Most errors are RFC 9457 `ProblemDetail` responses; the `416` download-range res
 
 The API returns `400` for invalid input, `403` for non-loopback settings access, `404` for missing items or chats, `405` for unsupported methods, `413` for oversized uploads, `415` for unsupported content types, `416` for unsatisfiable download ranges, and `500` for unexpected failures. There is no `401`; the API has no authentication.
 
-## Android client
+## Android app
 
-The Android app is a separate client of this HTTP API. The important pieces are:
+The native client lives in [`android/`](android/README.md). It is Kotlin +
+Jetpack Compose (minSdk 26) and covers the acceptance criteria in
+[spec.md](spec.md#13-acceptance-criteria-for-the-android-app):
 
-- Use plain HTTP to `http://<host>:8080`; Android needs a cleartext network security config, and newer versions may also require a local-network permission.
-- Discover the server with a cached address, the Worker record, an optional `/24` scan on port 8080, or the `selfdrop://pair?u=<url>&id=<id>` QR link. Verify `/ping`'s `id` before using an address.
-- Load the chat list with `GET /chat`, then load the open chat with `GET /file?chatId=<id>` and stream `/messages?since=<seq>` while in the foreground. Handle `item-added`, `item-updated`, `item-deleted`, and `heartbeat`, filtering events by `item.chatId`; reload the open chat on reconnect because deletes are not replayed.
-- Upload text with `POST /upload/text?chatId=<id>` (raw body) and files with multipart `POST /upload/file?chatId=<id>` using repeated `files` parts. Stream from `content://` URIs; do not buffer whole files.
-- Download with `/download/{id}` and resume using `Range`; use `/preview/{id}` for raster images and videos. Use `Content-Length` for a full response and `Content-Range` for the total on a `206`, not the metadata `size`.
-- There is no authentication, no idempotency key, and no upload quota. Keep the server on the LAN.
+- Discovery through the cached address, the rendezvous Worker, a `/24` LAN scan,
+  a `selfdrop://pair` QR code, or manual entry, with a `/ping` server-id check
+  before trusting an address.
+- A chat timeline with text, links, images, videos and files, all updating live
+  over `/messages` while the app is in the foreground. Media previews are
+  click-to-load, like the web UI, so opening a chat does not fetch them all.
+- Sending text and streaming multi-file uploads with a progress bar.
+- `ACTION_SEND` / `ACTION_SEND_MULTIPLE` share targets, with WorkManager queuing
+  and retry for shared uploads.
+- Resumable downloads with `Range` and a progress bar, saved directly into the
+  phone's public `Downloads` folder, with inline previews through
+  `/preview/{id}` and opening through MediaStore or a `FileProvider`.
+- A visible connecting/live/reconnecting/offline state, copy/delete/open actions,
+  and chat creation, renaming and deletion.
 
-See [spec.md](spec.md) for the complete request/response contract, SSE framing, discovery sequence, and Android acceptance criteria.
+The Android toolchain does not need to be installed on the host. Builds run in
+the pulled `ghcr.io/cirruslabs/android-sdk:35` image:
+
+```bash
+make android-image    # pull the SDK image once
+make android-build    # debug APK in android/app/build/outputs/apk/debug/
+make android-test     # JVM unit tests
+make android-lint     # Android lint
+make android-install  # install on a USB device (Linux)
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+`android/dev.sh` runs any Gradle task as the host user and caches the Gradle
+distribution and dependencies under `~/.cache/selfdrop/android`. Set
+`SELFDROP_ANDROID_IMAGE` to use a different SDK image. The rendezvous Worker URL
+is editable in the app; only its public record endpoint is used, never the write
+token. See [android/README.md](android/README.md) for the app architecture and
+current limitations.
+
+The backend contract is unchanged. The Android app is still just an HTTP client
+of the same API described below and in [spec.md](spec.md).
 
 ## Storage and persistence
 
@@ -292,6 +323,15 @@ A `Makefile` wraps the day-to-day workflows:
 | `make build` | Compile, test, and assemble the application |
 | `make css` | Regenerate `src/main/resources/static/css/style.css` |
 | `make css-watch` | Regenerate the CSS on every template/JS change |
+| `make image` | Build the jar, then the backend Docker image |
+| `make image-full` | Build the backend Docker image entirely inside Docker |
+| `make android-image` | Pull the Android SDK build image |
+| `make android-build` | Compile the Android debug APK in Docker |
+| `make android-release` | Compile the Android release APK in Docker |
+| `make android-test` | Run Android unit tests in Docker |
+| `make android-lint` | Run Android lint in Docker |
+| `make android-install` | Install the debug APK on a USB device (Linux) |
+| `make android-shell` | Open a shell in the Android build image |
 | `make clean` | Remove Gradle build output |
 | `make clean-data` | Remove `./data` (database and stored files) |
 | `make clean-tailwind` | Remove the cached Tailwind CLI |

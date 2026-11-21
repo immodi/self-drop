@@ -36,11 +36,26 @@ out/
 ### VS Code ###
 .vscode/
 
+# Android build output and machine-local SDK path
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/**/build/
+# Release signing material must never be committed.
+android/keystore/
+android/keystore.properties
+*.apk
+*.aab
+# Published release artefacts (signed APK + checksum) are intentionally tracked.
+!releases/*.apk
+!releases/*.sha256
+
 # Local secrets and Worker build state
 .env
 worker/.dev.vars
 worker/.wrangler/
 worker/node_modules/
 
-data/
+# Local runtime data (SQLite database and stored files)
+/data/
 TODO

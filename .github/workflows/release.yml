@@ -1,0 +1,43 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify release files
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          apk="releases/selfdrop-${tag}.apk"
+          notes="releases/RELEASE_NOTES-${tag}.md"
+          test -f "$apk"
+          test -f "$notes"
+          (cd releases && sha256sum -c "selfdrop-${tag}.apk.sha256")
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          apk="releases/selfdrop-${tag}.apk"
+          notes="releases/RELEASE_NOTES-${tag}.md"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" "${apk}.sha256" --clobber
+          else
+            gh release create "$tag" "$apk" "${apk}.sha256" \
+              --title "Selfdrop Android ${tag}" \
+              --notes-file "$notes"
+          fi

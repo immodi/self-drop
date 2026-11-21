@@ -34,3 +34,31 @@ jobs:
           name: test-report
           path: build/reports/tests/test
           if-no-files-found: ignore
+
+  android:
+    name: Build Android app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/selfdrop/android
+          key: android-gradle-${{ hashFiles('android/**/*.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/gradle.properties') }}
+          restore-keys: android-gradle-
+
+      - name: Build and test in the Android SDK container
+        run: |
+          android/dev.sh ./gradlew --no-daemon \
+            :app:assembleDebug :app:testDebugUnitTest
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfdrop-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

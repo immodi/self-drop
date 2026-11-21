@@ -725,8 +725,11 @@ by `createdAt`/`seq` descending in the client.
 ### 7.3 Previews
 
 - Use `/preview/{id}` for raster images and videos.
-- Play videos with the platform's native player against the preview URL; the
-  endpoint supports byte ranges so seeking works.
+- Play videos with ExoPlayer against the preview URL; the endpoint supports
+  byte ranges so seeking works.
+- Use a TextureView-backed player (not a SurfaceView/MediaController popup) and
+  allow only one inline video to play at a time, so video surfaces do not draw
+  over menus and multiple decoders do not compete.
 - SVG, HTML, PDF, audio, and other types return `404`; use `/download/{id}` and
   open with an external viewer.
 - Preview responses are cacheable for one hour privately.
@@ -913,8 +916,15 @@ Rules:
 - Load chats with `GET /chat`, then load the open chat's timeline with
   `GET /file?chatId=<id>` (oldest-first; reverse for display).
 - Render text and links; preview raster images with `/preview/{id}`; play
-  videos inline with the native player against `/preview/{id}`; show other
-  files with name, size, and a download action.
+  videos inline against `/preview/{id}`; show other files with name, size, and
+  a download action.
+- Fetch image and video previews only after the user asks for them. Show a
+  click-to-load placeholder first, and restore previews that were already
+  loaded when the timeline re-renders.
+- Play at most one inline video at a time. Use a player surface that stays in
+  the normal view hierarchy (ExoPlayer with a TextureView rather than a
+  SurfaceView/MediaController popup), and remove video surfaces while
+  navigation overlays are open so they cannot draw over menus.
 - Open `/messages?since=<highest seq>` while the app is in the foreground.
 - Handle `item-added`, `item-updated`, and `item-deleted` by id. Filter events
   by the top-level `chatId` (it is present for deletes too) for the open chat.
@@ -947,12 +957,17 @@ Rules:
 
 - Use `/download/{id}` for attachments and `/preview/{id}` for image and video
   previews.
-- For downloads, save to app storage and support resume with a `Range` header.
+- For downloads, save into the phone's public `Downloads` folder (no app-specific
+  subfolder) and support resume with a `Range` header. Use MediaStore on Android
+  10+ (`IS_PENDING` while writing) and the legacy public directory plus
+  `WRITE_EXTERNAL_STORAGE` on Android 9 and older. Keep the resumable `.part`
+  file in app-private staging storage, then publish the complete file.
 - Handle `206` (append), `200` (restart), and `416` (already complete or
   invalid).
 - Use the response `Content-Length`/`Content-Range` total, not the item's
   metadata `size`.
-- Open downloaded files through a `FileProvider` with the stored MIME type.
+- Open downloaded files through the MediaStore content URI, or a
+  `FileProvider` URI on legacy Android versions, with the stored MIME type.
 - Fall back to `/download/{id}` when `/preview/{id}` returns `404`.
 
 ### 10.6 Deletion and updates
@@ -966,8 +981,15 @@ Rules:
 ### 10.7 UI behavior
 
 - Show the connection state: connecting, live, reconnecting, offline.
-- Show upload progress from the request body; the server does not provide a
-  progress endpoint.
+- Show upload and download progress bars; upload progress comes from the
+  request body and download progress from the bytes written, since the server
+  provides no progress endpoint.
+- Do not fetch image or video previews when a chat opens. Show a click-to-load
+  placeholder for each one, like the web UI, and restore already-loaded
+  previews when the same items are re-rendered.
+- Only one inline video may play at a time; starting another pauses the
+  previous one. Pause on background and hide video surfaces while the chat
+  drawer is open.
 - Show errors from `ProblemDetail.detail`; use `errors` for field-level
   messages.
 - Show a clear empty state and a retry action when discovery fails.
@@ -1090,10 +1112,12 @@ namespace. See `worker/README.md` for deployment. The backend needs
 - Sharing a text or link creates an item visible on the web UI.
 - Sharing one or more files creates file items visible on the web UI, without
   loading whole files into memory.
-- The timeline loads with `GET /file`, renders text/images/files, and updates
-  live over `/messages` while in the foreground.
+- The timeline loads with `GET /file`, renders text/images/files, updates live
+  over `/messages` while in the foreground, and only fetches media previews
+  after the user asks for them.
 - Deleting an item removes it locally and on other clients.
-- Downloading a file works and can resume after interruption.
+- Downloading a file works, shows progress, can resume after interruption, and
+  lands directly in the phone's public `Downloads` folder.
 - Images and videos preview through `/preview/{id}`; SVG/HTML do not.
 - A wrong server id is detected and the user is asked before switching.
 - A foreign network or unreachable server shows an offline state within about
@@ -1120,13 +1144,20 @@ assumed by the Android app:
 
 ---
 
-## 15. Open decisions for the Android project
+## 15. Android project decisions
 
-- Language and UI toolkit: Kotlin + Jetpack Compose, Kotlin + Views, or Java.
-- Minimum SDK and target SDK.
-- Whether the Worker URL is a build constant, a remote config value, or an
-  advanced setting.
-- Whether to keep a local mirror of the timeline in a database for offline
-  viewing.
-- Whether to deduplicate retried uploads client-side.
-- Whether to support metadata editing (`PUT /file`) in the first release.
+These were open questions in earlier revisions; the implementation in
+[`android/`](android/README.md) settles them:
+
+- **Language and UI:** Kotlin + Jetpack Compose, Material 3.
+- **SDK:** minSdk 26, compile/target SDK 35, built with the SDK 35 container
+  image.
+- **Worker URL:** configurable in app settings (pairing screen and server
+  settings), defaulting to the reference deployment. It is not a build secret.
+- **Offline data:** no local mirror in the first release; the timeline is loaded
+  from the server and reconciled on foreground/reconnect.
+- **Retried uploads:** no client-side deduplication, matching the API's lack of
+  an idempotency key. Share-sheet uploads go through WorkManager once.
+- **Metadata editing:** `PUT /file` is not exposed in the first release.
+- **Toolchain:** builds and tests run in Docker via `android/dev.sh`; no
+  Android SDK or JDK installation is required on the host.
